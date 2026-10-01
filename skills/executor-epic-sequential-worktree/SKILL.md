@@ -144,8 +144,8 @@ Run **from inside `<WORKTREE_PATH>`**, on `<EPIC_BRANCH>`, **strictly one at a t
 
 ```bash
 (cd <WORKTREE_PATH> && timeout 3600 claude -p "<TASK_PROMPT>" \
-  --model claude-opus-4-8 \
-  --effort xhigh \
+  --model claude-opus-5-5 \
+  --effort high \
   --dangerously-skip-permissions \
   --output-format json) \
   > "<tmp>/epic-task-<BEAD_ID>.json"
@@ -158,7 +158,7 @@ Run **from inside `<WORKTREE_PATH>`**, on `<EPIC_BRANCH>`, **strictly one at a t
 Notes on the invocation:
 
 - **The worker runs in the worktree, not the main tree.** Because `claude -p` is spawned with the worktree as its cwd, it loads the worktree's `.claude/skills/` and operates on the epic-branch checkout. The main checkout is never the worker's working directory.
-- **Model and effort are pinned**, not inherited: `--model claude-opus-4-8 --effort xhigh`. Each worker delivers a full bead (plan + implement + review), so it runs on the strongest model at high reasoning effort. `--effort` accepts `low|medium|high|xhigh|max`; `xhigh` is the "ultracode" level — raise to `max` for the ceiling, lower it only to economize on simple epics.
+- **Model and effort are pinned**, not inherited: `--model claude-opus-5-5 --effort high`. Each worker delivers a full bead (plan + implement + review), so it runs on the strongest model at high reasoning effort. `--effort` accepts `low|medium|high|xhigh|max`; raise to `xhigh` or `max` for harder epics, lower it only to economize on simple ones.
 - **Why headless and not a subagent:** a subagent cannot dispatch a further subagent, so it could not run `requesting-code-review`'s `code-reviewer` subagent. A headless `claude -p` run is a top-level session, so the full cycle — including code review — works unchanged.
 - **Outcome is read from `bd show` (run in the worktree), not the `RESULT:` line.** The `RESULT:` line and the worker's `.result` text are for the human summary only; the bead's actual status is authoritative.
 - **Per-task timeout** (`timeout 3600`, ~1h) prevents one stuck bead from hanging the whole run. A timeout counts as a failure → force-block and skip.
