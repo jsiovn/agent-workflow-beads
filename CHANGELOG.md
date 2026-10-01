@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.2] - 2026-10-01
+
+Patch release moving the epic executors' headless workers to Claude Opus 5.5.
+
+### Changed
+
+- `executor-epic-sequential` and `executor-epic-sequential-worktree` now pin each
+  headless `claude -p` worker to `--model claude-opus-5-5 --effort high`
+  (previously `claude-opus-4-8` at `xhigh`). The invocation notes now say to
+  raise effort to `xhigh` or `max` for harder epics.
+
 ## [1.1.1] - 2026-07-07
 
 Patch release fixing an `agent-workflow-beads update` / `bootstrap` crash on
@@ -120,6 +131,7 @@ template to a stable path, maintaining shell aliases, or running per-OS scripts.
 
 - Node.js >= 18; `git`, `bd`, and `dolt` on `PATH`.
 
+[1.1.2]: https://github.com/jsiovn/agent-workflow-beads/releases/tag/v1.1.2
 [1.1.1]: https://github.com/jsiovn/agent-workflow-beads/releases/tag/v1.1.1
 [1.1.0]: https://github.com/jsiovn/agent-workflow-beads/releases/tag/v1.1.0
 [1.0.0]: https://github.com/jsiovn/agent-workflow-beads/releases/tag/v1.0.0

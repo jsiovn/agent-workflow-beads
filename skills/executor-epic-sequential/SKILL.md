@@ -72,8 +72,8 @@ Run from the repo root, on `<EPIC_BRANCH>`, **strictly one at a time** (the work
 
 ```bash
 timeout 3600 claude -p "<TASK_PROMPT>" \
-  --model claude-opus-4-8 \
-  --effort xhigh \
+  --model claude-opus-5-5 \
+  --effort high \
   --dangerously-skip-permissions \
   --output-format json \
   > "<tmp>/epic-task-<BEAD_ID>.json"
@@ -85,7 +85,7 @@ timeout 3600 claude -p "<TASK_PROMPT>" \
 
 Notes on the invocation:
 
-- **Model and effort are pinned**, not inherited: `--model claude-opus-4-8 --effort xhigh`. Each worker delivers a full bead (plan + implement + review), so it runs on the strongest model at high reasoning effort rather than whatever default the environment carries. `--effort` accepts `low|medium|high|xhigh|max`; `xhigh` is the "ultracode" level — raise to `max` if you want the ceiling, lower it only to economize on simple epics.
+- **Model and effort are pinned**, not inherited: `--model claude-opus-5-5 --effort high`. Each worker delivers a full bead (plan + implement + review), so it runs on the strongest model at high reasoning effort rather than whatever default the environment carries. `--effort` accepts `low|medium|high|xhigh|max`; raise to `xhigh` or `max` for harder epics, lower it only to economize on simple ones.
 - **Why headless and not a subagent:** a subagent cannot dispatch a further subagent, so it could not run `requesting-code-review`'s `code-reviewer` subagent. A headless `claude -p` run is a top-level session, so the full cycle — including code review — works unchanged.
 - **Outcome is read from `bd show`, not the `RESULT:` line.** The `RESULT:` line and the worker's `.result` text are for the human summary only; the bead's actual status is authoritative.
 - **Per-task timeout** (`timeout 3600`, ~1h) prevents one stuck bead from hanging the whole run. A timeout counts as a failure → force-block and skip.

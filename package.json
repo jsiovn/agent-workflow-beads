@@ -1,6 +1,6 @@
 {
   "name": "agent-workflow-beads",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Scaffold a consistent planner → executor workflow (shared skills, subagents, and Beads-backed task tracking) for AI coding agents into any repo.",
   "license": "MIT",
   "author": "jsiovn",
