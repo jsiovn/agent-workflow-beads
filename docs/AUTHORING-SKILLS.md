@@ -16,8 +16,8 @@ seam instead of creating a parallel one.
 - [ ] **Pick the mode.** Planner or executor (see `SKILLS_RELATIONSHIPS.md` §1).
       A skill belongs to exactly one. If it would touch both, it's two skills.
 - [ ] **Decide the surface.** Shared (`skills/<name>/`, copied to `.claude/skills/`
-      on every run, and to `.codex/skills/` only when Codex is enabled via
-      `--with-codex`), or stage-1 / bootstrap-only (`templates/skills/<name>/`,
+      on every run — OpenCode reads skills from there too), or stage-1 /
+      bootstrap-only (`templates/skills/<name>/`,
       copied once and preserved — used today for `build-and-test` and the
       opt-in `attach-web-screenshots`)?
 - [ ] **Pick the type.** Technique (concrete steps), Pattern (way of thinking),
@@ -61,10 +61,9 @@ A skill that has never been tested against a subagent under pressure is a draft.
 
 ## 4. Propagation check
 
-- [ ] **Provider parity.** A new shared skill under `skills/<name>/` is picked up
+- [ ] **Auto-pickup.** A new shared skill under `skills/<name>/` is picked up
       automatically — `lib/scaffold.js` copies every `skills/` dir into
-      `.claude/skills/` (always) and into `.codex/skills/` (only with
-      `--with-codex`). No copy line to add.
+      `.claude/skills/`. No copy line to add.
 - [ ] **Renames/removals.** Removing or renaming a skill? Add the old name to the
       `LEGACY_SKILLS` list in `lib/scaffold.js` so existing downstreams get the
       stale copy pruned on their next `agent-workflow-beads update`.
@@ -80,9 +79,8 @@ A change isn't done until it survives the full propagation cycle:
 
 - [ ] `agent-workflow-beads update` against a scratch downstream repo (use `npm link`
       from the template checkout to run your in-progress CLI changes).
-- [ ] Inspect what landed — `.claude/skills/` always, and `.codex/skills/` only
-      when testing with `--with-codex`. When both are present, confirm the two
-      provider copies are identical.
+- [ ] Inspect what landed in `.claude/skills/` (and `.opencode/agents/` when
+      testing with `--with-opencode`).
 - [ ] Confirm the refreshed files appear as ordinary tracked files in
       `git status` (committed, not gitignored).
 - [ ] If you removed a skill, confirm its old path is *gone* downstream.

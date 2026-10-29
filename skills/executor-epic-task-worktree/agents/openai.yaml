@@ -1,3 +1,0 @@
-display_name: Executor Epic Task Worktree
-short_description: Run one Beads executor cycle in a fresh git worktree off an epic branch and open a PR into that epic
-default_prompt: Execute one bead end-to-end in a fresh git worktree cut from the latest epic/<epic-bead-id> branch (creating that epic branch off the default branch if it does not yet exist), then push and open a PR targeting that epic branch. Never touch the main working tree.

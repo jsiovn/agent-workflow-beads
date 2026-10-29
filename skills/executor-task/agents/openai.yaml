@@ -1,3 +1,0 @@
-display_name: Executor Task
-short_description: Run one Beads executor cycle on a fresh branch and open a PR
-default_prompt: Execute one bead end-to-end on a fresh feat/<bead-id> branch cut from the latest main, then push and open a PR.

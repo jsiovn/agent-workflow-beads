@@ -1,6 +1,6 @@
 ---
 name: executor-rework-in-place
-description: 'Re-execute one bead on the current feature branch in the current main worktree, after its requirements were updated and its PR is already open. Requires bead_id. Does NOT create a branch, switch to main, or open a new PR — just re-claims, re-plans, re-implements, verifies, re-reviews, closes the bead, then pushes into the existing PR with a fixup summary comment.'
+description: 'Re-execute one bead on the current feature branch in the current main worktree, after its requirements were updated and its PR is already open. Requires bead_id. Does NOT create a branch, switch to main, or open a new PR — just re-claims, re-plans, re-implements, verifies, re-reviews, closes the bead, then pushes into the existing PR with a fixup summary comment. Pass `opencode` to delegate implementation to a headless OpenCode implementor.'
 ---
 
 # Executor Rework In Place
@@ -16,9 +16,14 @@ Use this when:
 
 If you would otherwise create a fresh branch, use `executor-task` (in-place tree) or `executor-task-worktree` (sibling worktree) instead.
 
+## Implementor argument
+
+Optional. Pass `opencode` (or `--implementor opencode` / `implementor=opencode`, plus an optional `model=<provider/model[#variant]>`) to delegate the **implementation step** to a headless OpenCode implementor via the `implement-with-opencode` skill. Record `<IMPLEMENTOR>` (`claude` by default, `opencode` when requested) and `<MODEL>`. Claude still runs every other step — claim, plan, build-and-test, verification, code review, close. Without the argument, Claude implements inline.
+
 ## Steps
 
 1. If the current repo is not initialized for Beads, stop and tell the user to run the template bootstrap script or at minimum `bd init --prefix <prefix>` plus the repo scaffolding steps.
+   - If `<IMPLEMENTOR>`=`opencode`, run the `implement-with-opencode` preflight now, before touching the working tree; stop if it fails.
 
 2. **`bead_id` is required.** Read it from the user's invocation. If missing, stop and ask the user for one — do **not** fall back to `bd ready`, do **not** autodetect from the branch name. Reworking the wrong bead is harder to recover from than picking a fresh one wrong. Record as `<BEAD_ID>`.
 
@@ -52,9 +57,9 @@ If you would otherwise create a fresh branch, use `executor-task` (in-place tree
 7. Run the executor cycle for `<BEAD_ID>` — **every step in order**:
    - `beads-claim` — re-claim the reopened bead. If `bd` reports the bead is not in a claimable state (already closed, blocked, owned by someone else, etc.), stop and surface the state to the user.
    - `writing-plans` — REQUIRED. The bead's requirements changed; the existing plan is presumed stale. When invoking writing-plans, explicitly note "the bead was reworked; regenerate or amend the existing plan against the updated bead text" so an existing plan file is overwritten or amended rather than blindly reused.
-   - implementation
+   - implementation — Claude inline (default), or `implement-with-opencode` when `<IMPLEMENTOR>`=`opencode`
    - `systematic-debugging` if blocked
-   - **`build-and-test`** — REQUIRED after implementation. Read the repo-local skill (`.claude/skills/build-and-test/SKILL.md` for Claude sessions; `.codex/skills/build-and-test/SKILL.md` when running under Codex) and follow it. Do NOT skip this step.
+   - **`build-and-test`** — REQUIRED after implementation. Read the repo-local skill (`.claude/skills/build-and-test/SKILL.md`) and follow it. Do NOT skip this step.
    - `verification-before-completion` (run the verification commands)
    - `requesting-code-review` — REQUIRED. The PR is already open, but the rework introduces new code that needs a fresh local review pass before pushing.
    - `beads-close`
@@ -63,7 +68,7 @@ If you would otherwise create a fresh branch, use `executor-task` (in-place tree
 
 9. If a blocker appears, update the current bead, summarize the blocker, and stop on the current branch — do not push, do not comment on the PR. The working tree is already where the user wants it; nothing to recover.
 
-10. If build/test fails and the fix is still in scope, return to implementation and retry.
+10. If build/test fails and the fix is still in scope, return to implementation and retry. When `<IMPLEMENTOR>`=`opencode`, every retry — build/test failures and Critical/Important code-review findings alike — is a new implementor fix round (`implement-with-opencode`, ≤3 rounds); Claude never patches source itself.
 
 11. **Push into the existing PR.** After successful close, follow the `finishing-a-development-branch` skill's pre-push checks (clean tree, commits ahead of `<DEFAULT_BRANCH>`), then:
 

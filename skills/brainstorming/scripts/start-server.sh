@@ -12,14 +12,13 @@
 #                         Use 0.0.0.0 in remote/containerized environments.
 #   --url-host <host>     Hostname shown in returned URL JSON.
 #   --foreground          Run server in the current terminal (no backgrounding).
-#   --background          Force background mode (overrides Codex auto-foreground).
+#   --background          Force background mode (the default).
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Parse arguments
 PROJECT_DIR=""
 FOREGROUND="false"
-FORCE_BACKGROUND="false"
 BIND_HOST="127.0.0.1"
 URL_HOST=""
 while [[ $# -gt 0 ]]; do
@@ -41,7 +40,7 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --background|--daemon)
-      FORCE_BACKGROUND="true"
+      FOREGROUND="false"
       shift
       ;;
     *)
@@ -57,11 +56,6 @@ if [[ -z "$URL_HOST" ]]; then
   else
     URL_HOST="$BIND_HOST"
   fi
-fi
-
-# Some environments reap detached/background processes. Auto-foreground when detected.
-if [[ -n "${CODEX_CI:-}" && "$FOREGROUND" != "true" && "$FORCE_BACKGROUND" != "true" ]]; then
-  FOREGROUND="true"
 fi
 
 # Generate unique session directory

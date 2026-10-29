@@ -1,3 +1,0 @@
-display_name: Executor Worktree
-short_description: Run one Beads executor cycle in an isolated git worktree and open a PR
-default_prompt: Execute one bead end-to-end in a fresh git worktree off main, then push and open a PR. The main working tree is left untouched.

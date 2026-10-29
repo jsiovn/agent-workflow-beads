@@ -1,3 +1,0 @@
-display_name: Executor Epic Task
-short_description: Run one Beads executor cycle on a fresh branch off an epic branch and open a PR into that epic
-default_prompt: Execute one bead end-to-end on a fresh feat/<bead-id> branch cut from the latest epic/<epic-bead-id> branch, then push and open a PR targeting that epic branch.

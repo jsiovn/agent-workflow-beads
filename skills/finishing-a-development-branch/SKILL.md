@@ -78,7 +78,7 @@ Branch: <branch-name>
 
 - Treat Beads as local runtime. Do not try to publish live `.beads` state through Git during normal branch completion.
 - Workflow scaffold files are committed to this repo's git and are pushed with the feature branch like any other tracked file.
-- Plan files under `docs/plans/` are the exception: they are git-ignored local scratch, written fresh per bead and never committed or pushed — don't expect a plan to appear in the PR or reach another machine. To carry a plan across machines, inline it into the bead's `notes` (Dolt-synced).
+- Plan files under `docs/plans/` are tracked too: `writing-plans` commits each bead's plan on its branch, so it is pushed with the branch and appears in the PR.
 - If `bd where` fails, stop and repair the checkout with `bd bootstrap --yes` before pushing or creating a PR.
 
 ## Integration

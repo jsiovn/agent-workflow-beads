@@ -10,7 +10,7 @@ This repo uses **`bd`** for task state and selected execution-quality skills for
 
 ## Workflow Skills
 
-Claude Code (and Codex, when set up) can enter the workflow through repo-local skills installed under `.claude/skills/` (and `.codex/skills/` when Codex is set up):
+Claude Code enters the workflow through repo-local skills installed under `.claude/skills/`:
 
 - `plan-beads`
 - `executor-task`
@@ -51,6 +51,8 @@ Claims one bead and delivers it.
 7. `requesting-code-review`
 8. `beads-close`
 
+Optional: pass `opencode` to any executor skill to have step 3 run as a headless OpenCode implementor (`implement-with-opencode`; needs `opencode` on `PATH` and `.opencode/agents/implementor.md` from `agent-workflow-beads update --with-opencode`). Build/test failures and Critical/Important review findings go back to the implementor as fix rounds; Claude keeps every other step.
+
 Entry: a ready bead from `bd ready`.
 Exit: bead closed, code committed, follow-up beads created if needed.
 
@@ -90,7 +92,7 @@ Use this after `bd reopen <bead-id>` and editing the bead's requirements. It sta
 - Open pull requests instead of merging locally.
 - Beads state itself is local-only; code moves through Git, not Beads exports.
 - Workflow scaffold files are committed to this repo's git and travel with feature branches and `git worktree` checkouts.
-- Plan files under `docs/plans/` are git-ignored local scratch — written fresh per bead, never committed or pushed. To carry a plan across machines, inline it into the bead's `notes` (Dolt-synced), not the `docs/plans/` path.
+- Plan files under `docs/plans/` are committed: `writing-plans` commits each bead's plan on its branch (`docs(plan): …`), so it travels with the branch and lands in the PR. A plan is only visible from other branches once it merges; until then, inline it into the bead's `notes` (Dolt-synced) when another checkout needs it.
 - `finishing-a-development-branch` handles branch push and PR creation.
 
 ## Operational Notes

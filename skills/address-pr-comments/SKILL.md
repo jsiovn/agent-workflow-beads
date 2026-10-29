@@ -16,10 +16,9 @@ Two sources of feedback are checked on every run:
 
 ## Where the subagent lives
 
-- `.claude/agents/pr-comment-fixer.md` (Claude)
-- `.codex/agents/pr-comment-fixer.md` (Codex, if Codex is set up)
+- `.claude/agents/pr-comment-fixer.md`
 
-If the Claude copy is missing, run `update-skills` against the repo to install it.
+If it is missing, run `agent-workflow-beads update` against the repo to install it.
 
 ## Prerequisites
 
@@ -132,8 +131,7 @@ Transform the results into the brief schema the subagent expects. Every item has
 
 Dispatch the `pr-comment-fixer` subagent:
 
-- **Claude session:** Task tool with `subagent_type: pr-comment-fixer`, prompt = the JSON brief plus a one-line preamble: `Address these unresolved review items on PR #<num>. Brief follows.`
-- **Codex session:** equivalent subagent dispatch with the same prompt.
+Task tool with `subagent_type: pr-comment-fixer`, prompt = the JSON brief plus a one-line preamble: `Address these unresolved review items on PR #<num>. Brief follows.`
 
 The subagent edits files and returns a JSON summary (schema in its definition). It does **not** commit, push, or call any GitHub API.
 

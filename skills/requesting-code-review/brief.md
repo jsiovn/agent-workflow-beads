@@ -1,6 +1,6 @@
 # Code Review Brief
 
-This is the prompt template the `requesting-code-review` skill fills in and passes to the `code-reviewer` subagent. The reviewer's standing instructions (checklist, output format, severity rules) live in the agent definition at `agents/code-reviewer.md` in this template, deployed to `.claude/agents/code-reviewer.md` (and `.codex/agents/code-reviewer.md` when Codex is set up) in downstream repos. Do **not** duplicate the checklist here — the agent already has it.
+This is the prompt template the `requesting-code-review` skill fills in and passes to the `code-reviewer` subagent. The reviewer's standing instructions (checklist, output format, severity rules) live in the agent definition at `agents/code-reviewer.md` in this template, deployed to `.claude/agents/code-reviewer.md` in downstream repos. Do **not** duplicate the checklist here — the agent already has it.
 
 Fill in every `{PLACEHOLDER}` below before dispatching.
 

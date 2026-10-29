@@ -65,9 +65,9 @@ agent-workflow-beads --version
 ## 5. Bootstrap a repo
 
 ```bash
-agent-workflow-beads bootstrap [--with-screenshots] [--with-codex] /path/to/repo yourprefix
+agent-workflow-beads bootstrap [--with-screenshots] [--with-opencode] /path/to/repo yourprefix
 ```
 
 Bootstrap initializes git if needed, runs `bd init -p yourprefix --server --skip-agents --skip-hooks`,
-installs the Claude integration (Codex only with `--with-codex`), and scaffolds the shared
-workflow files. For the full stage-1 then stage-2 adoption flow, see [SETUP-NEW-REPO.md](SETUP-NEW-REPO.md).
+installs the Claude integration, and scaffolds the shared workflow files (plus the OpenCode
+implementor agent with `--with-opencode`; that option also needs `opencode` on `PATH`). For the full stage-1 then stage-2 adoption flow, see [SETUP-NEW-REPO.md](SETUP-NEW-REPO.md).
