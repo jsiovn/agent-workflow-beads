@@ -55,14 +55,6 @@ Save `screen_dir` from the response. Tell user to open the URL.
 scripts/start-server.sh --project-dir /path/to/project
 ```
 
-**Codex:**
-
-```bash
-# Codex reaps background processes. The script auto-detects CODEX_CI and
-# switches to foreground mode. Run it normally — no extra flags needed.
-scripts/start-server.sh --project-dir /path/to/project
-```
-
 **Gemini CLI:**
 
 ```bash

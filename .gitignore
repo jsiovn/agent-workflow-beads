@@ -4,6 +4,17 @@ __pycache__/
 *.py[cod]
 /.beads/
 .idea/
-.claude/settings.local.json
 node_modules/
 *.tgz
+
+# BEGIN TEMPLATE AGENT WORKFLOW LOCAL-ONLY
+.beads-credential-key
+.beads/interactions.jsonl
+.beads/epic-runs
+.claude/scheduled_tasks.lock
+.claude/settings.local.json
+.bv/
+*.db
+.dolt/
+docs/plans/
+# END TEMPLATE AGENT WORKFLOW LOCAL-ONLY

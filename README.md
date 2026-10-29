@@ -1,6 +1,6 @@
 # Agent Workflow Beads
 
-A scaffold that installs a consistent **planner → executor** workflow for **AI coding agents** into any repo — a shared set of skills, subagents, and [Beads](https://github.com/steveyegge/beads)-backed task tracking so that **Claude Code** (the primary AI) follows the same playbook in every project, with **Codex** as an optional opt-in. You plan once, execute one bead per PR, and ship.
+A scaffold that installs a consistent **planner → executor** workflow for **AI coding agents** into any repo — a shared set of skills, subagents, and [Beads](https://github.com/steveyegge/beads)-backed task tracking so that **Claude Code** (the primary AI) follows the same playbook in every project, with an optional headless **OpenCode** implementor that executors can hand the coding step to. You plan once, execute one bead per PR, and ship.
 
 This repo runs nothing itself — it's developer tooling for AI coding agents, not a CI/CD or GitHub Actions "workflow." You install the `agent-workflow-beads` CLI once on your machine, then run one command per project to scaffold (or refresh) the workflow inside that project.
 
@@ -17,6 +17,7 @@ You need these machine-wide tools before bootstrapping any project:
 | Node.js ≥18 | Runs the `agent-workflow-beads` CLI (via `npm`) | `node --version`   |
 | `bd`       | Beads CLI (issue tracking)                | `bd version`       |
 | `dolt`     | Storage backend used by `bd`              | `dolt version`     |
+| `opencode` | _Optional_ — only for the OpenCode implementor (`--with-opencode`) | `opencode --version` |
 
 `git` is also required (you almost certainly already have it). Per-OS instructions for installing `bd` and `dolt` are in [docs/INSTALL.md](docs/INSTALL.md). The CLI itself is pure Node — there is no Python, bash, or PowerShell dependency, and it works the same on macOS, Linux, and Windows.
 
@@ -49,9 +50,9 @@ agent-workflow-beads bootstrap /path/to/your-repo myprefix
 
 # Opt-in flags — also accepted by `update`, so you can adopt them later
 # (and are auto-detected on later runs once the surface exists):
-#   --with-codex         also scaffold Codex: .codex/ skills+agents + AGENTS.md + `bd setup codex`
+#   --with-opencode      also scaffold the OpenCode implementor agent: .opencode/agents/implementor.md
 #   --with-screenshots   web/UI only: attach-web-screenshots skill + cleanup-screenshots.yml CI workflow
-agent-workflow-beads bootstrap /path/to/your-repo myprefix --with-codex --with-screenshots
+agent-workflow-beads bootstrap /path/to/your-repo myprefix --with-opencode --with-screenshots
 ```
 
 ### 3. Refresh later
@@ -68,7 +69,7 @@ For a guided walkthrough of a brand-new project, see [docs/SETUP-NEW-REPO.md](do
 
 ## How to use skills and agents
 
-Once a repo is bootstrapped, your AI tool — Claude Code by default, or Codex if you opted in with `--with-codex` — sees two kinds of building blocks:
+Once a repo is bootstrapped, Claude Code sees two kinds of building blocks:
 
 - **Skills** — runnable workflows. You invoke a skill by name (e.g. `plan-beads`, `executor-task`) and the model executes the whole workflow end-to-end.
 - **Agents** — focused single-purpose roles (PM, architect, reviewer, …). You invoke an agent when you want that specific perspective on the current work.
@@ -91,6 +92,8 @@ executor-epic-sequential <epic-id>   # run a WHOLE epic on one branch, fresh ses
 executor-epic-sequential-worktree <epic-id>   # same, but in an isolated worktree (main tree untouched)
 executor-rework-in-place <bead-id>   # bead was reopened, amend the existing PR
 ```
+
+**OpenCode implementor (optional).** Add `opencode` to any executor call — e.g. `executor-task <bead-id> opencode`, optionally with `model=<provider/model>` — and only the implementation step runs as a headless `opencode run --agent implementor` (via the `implement-with-opencode` skill). Claude still claims, plans, runs `build-and-test`, reviews the result with its `code-reviewer` (a cross-model review), and closes the bead; test failures and review findings go back to OpenCode as fix rounds. Requires `opencode` on `PATH` and a repo bootstrapped or updated with `--with-opencode`. OpenCode reads the skills from `.claude/skills/` and the instructions from `CLAUDE.md`, so nothing else is duplicated.
 
 Other useful skills you'll reach for:
 
@@ -141,6 +144,7 @@ Other useful skills you'll reach for:
 | `systematic-debugging`           | Structured root-cause investigation before proposing a fix                                    | Any bug, test failure, or unexpected behavior                            |
 | `verification-before-completion` | Forces real verification commands before claiming "done"                                      | Before committing, opening a PR, or asserting success                    |
 | `build-and-test`                 | Runs the literal `## Verification` section of the current execution plan                      | After implementing changes; specialize per repo in stage 2               |
+| `implement-with-opencode`        | Runs an executor's implementation step as a headless OpenCode `implementor`, judging the round from git | When an executor was invoked with the `opencode` argument                |
 
 </details>
 
@@ -218,9 +222,9 @@ One cross-platform command, three subcommands:
 
 | Purpose                          | Command                                                                       |
 | -------------------------------- | ----------------------------------------------------------------------------- |
-| Bootstrap a new downstream repo  | `agent-workflow-beads bootstrap [--with-screenshots] [--with-codex] <repo> <prefix>` |
-| Refresh shared workflow surface  | `agent-workflow-beads update [--with-screenshots] [--with-codex] <repo>`            |
-| Prerequisite check               | `agent-workflow-beads check [--with-codex]`                                          |
+| Bootstrap a new downstream repo  | `agent-workflow-beads bootstrap [--with-screenshots] [--with-opencode] <repo> <prefix>` |
+| Refresh shared workflow surface  | `agent-workflow-beads update [--with-screenshots] [--with-opencode] <repo>`            |
+| Prerequisite check               | `agent-workflow-beads check [--with-opencode]`                                          |
 
 Run `agent-workflow-beads --help` for the full usage, or `agent-workflow-beads --version` to see the installed version.
 

@@ -10,16 +10,16 @@ Use this guide when starting a downstream repo from scratch or when a repo is st
    - `dolt`
    - `git`
 2. Bootstrap the repo from this template:
-   - `agent-workflow-beads bootstrap [--with-screenshots] [--with-codex] /path/to/repo <prefix>`
+   - `agent-workflow-beads bootstrap [--with-screenshots] [--with-opencode] /path/to/repo <prefix>`
    - The same command works on macOS, Linux, and Windows.
    - Pass `--with-screenshots` only for web/UI projects that want the `attach-web-screenshots` skill plus its companion `.github/workflows/cleanup-screenshots.yml`. Omit for backend, CLI, or library repos.
-   - Claude Code is the primary AI: the `.claude/` surface is always installed. Pass `--with-codex` to also install the Codex (`.codex/`) surface and `AGENTS.md`. (Codex is auto-detected and kept current if the downstream already has a `.codex/` directory.)
+   - Claude Code is the primary AI: the `.claude/` surface is always installed. Pass `--with-opencode` to also install the OpenCode implementor agent (`.opencode/agents/implementor.md`), which lets any executor skill delegate its implementation step with the `opencode` argument. (It is auto-detected and kept current if the downstream already has `.opencode/agents/`.)
 3. The bootstrap script:
    - initializes git if the target path is not already a repo
    - runs `bd init -p <prefix> --server --skip-agents --skip-hooks`
-   - runs `bd setup claude` (and `bd setup codex` only with `--with-codex`)
-   - scaffolds the shared workflow docs and skills (Claude `.claude/` always; Codex `.codex/` only with `--with-codex`)
-   - installs the managed root `.gitignore` block for local runtime artifacts (Beads/Dolt state, `*.db`, etc.) plus `docs/plans/` (per-session plan scratch that stays local — see `writing-plans`)
+   - runs `bd setup claude` (never `bd setup opencode` — its `AGENTS.md` section would shadow `CLAUDE.md` for OpenCode)
+   - scaffolds the shared workflow docs and skills into `.claude/` (plus `.opencode/agents/` only with `--with-opencode`)
+   - installs the managed root `.gitignore` block for local runtime artifacts (Beads/Dolt state, `*.db`, etc.); plans under `docs/plans/` are committed per bead by `writing-plans`
    - creates a standalone stage-2 bead for specializing `build-and-test`, plus a matching bead for `attach-web-screenshots` only when that opt-in skill was installed
 4. Verify the repo is ready:
    - `bd where`
@@ -48,10 +48,9 @@ Customize the repo only after the real workflow becomes obvious from the first p
 Typical stage-2 changes:
 
 - specialize `.claude/skills/build-and-test/SKILL.md`
-- mirror the same specialization to `.codex/skills/build-and-test/SKILL.md` only when Codex was opted in (`--with-codex`)
-- (if installed) specialize `.claude/skills/attach-web-screenshots/SKILL.md` and the `.codex/` mirror when Codex is enabled
+- (if installed) specialize `.claude/skills/attach-web-screenshots/SKILL.md`
 - add runtime-specific setup or operational notes
-- add repo-specific guidance outside the managed blocks in `CLAUDE.md` (and `AGENTS.md` when Codex is enabled)
+- add repo-specific guidance outside the managed blocks in `CLAUDE.md` (and `AGENTS.md` if the repo keeps one)
 - run `agent-workflow-beads update <repo>` to refresh shared workflow docs and skills from the template — they are committed to the downstream's own git and travel with feature branches
 
 Examples:

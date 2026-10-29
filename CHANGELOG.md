@@ -4,6 +4,50 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-10-29
+
+OpenCode replaces Codex as the optional second AI — as a headless implementor
+that executor skills hand the coding step to, while Claude Code keeps every
+other step of the cycle.
+
+### Added
+
+- `--with-opencode` on `bootstrap` / `update` / `check`: scaffolds
+  `.opencode/agents/implementor.md` (OpenCode frontmatter; allowlist
+  permissions — every tool denied, built-ins re-allowed, so MCP/plugin tools
+  cannot bypass the shell rules — plus explicit denies for branch switches,
+  pushes, `gh`, and `bd` writes). Auto-detected on later runs
+  once `.opencode/agents/` exists. `check --with-opencode` warns when
+  `opencode` is not on `PATH`.
+- New shared skill `implement-with-opencode`: runs an executor's implementation
+  step as `opencode run --standalone --agent implementor --auto`, judges each
+  round from git (branch unchanged, new commits, clean tree), and routes
+  build/test failures and Critical/Important review findings back as fix rounds
+  (≤3 per bead).
+- All seven executor skills accept an optional `opencode` argument
+  (`--implementor opencode` / `implementor=opencode`, optional
+  `model=<provider/model[#variant]>`). The epic-sequential pair passes it to
+  each `claude -p` worker and raises the worker timeout to 5400s in that mode.
+
+### Removed
+
+- Codex support: the `.codex/` skill and agent surface, `bd setup codex`, the
+  `skills/*/agents/openai.yaml` metadata, and Codex notes across skills, docs,
+  and templates. `--with-codex` is still accepted but ignored with a warning; a
+  downstream's existing `.codex/` directory is left untouched.
+
+### Changed
+
+- `AGENTS.md` is no longer created; an existing one still gets its managed
+  block refreshed (OpenCode prefers `AGENTS.md` over `CLAUDE.md`).
+- `docs/plans/` is no longer git-ignored: the managed `.gitignore` block drops
+  it on the next `update`, and `writing-plans` now commits each bead's plan on
+  its branch (`docs(plan): <bead-id> …`) so plans travel with the branch and
+  land in the PR. Planner-time plans are still inlined into bead notes until
+  they reach the default branch.
+- Stage-1 follow-up bead text no longer has Codex variants; titles and the
+  Claude-only text are unchanged, so existing beads still dedupe.
+
 ## [1.1.2] - 2026-10-01
 
 Patch release moving the epic executors' headless workers to Claude Opus 5.5.

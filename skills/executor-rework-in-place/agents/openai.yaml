@@ -1,3 +1,0 @@
-display_name: Executor Rework In Place
-short_description: Re-execute a reopened bead on the current feature branch and push into the existing PR
-default_prompt: Re-execute bead <bead-id> in place on the current feature branch, then push into the existing open PR with a fixup summary comment.

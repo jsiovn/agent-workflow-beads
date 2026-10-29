@@ -1,6 +1,6 @@
 ---
 name: executor-epic-sequential
-description: 'Run every ready child bead of one epic end-to-end, sequentially, on a single epic branch (epic/<epic-bead-id>). Each bead executes in a fresh headless `claude -p` session so context never carries between tasks; a failed bead is marked blocked and skipped (along with its dependents) and the run continues; finishes with one PR from the epic branch to the default branch. Use when the user wants to deliver a whole epic unattended as one branch and one PR instead of running one bead at a time.'
+description: 'Run every ready child bead of one epic end-to-end, sequentially, on a single epic branch (epic/<epic-bead-id>). Each bead executes in a fresh headless `claude -p` session so context never carries between tasks; a failed bead is marked blocked and skipped (along with its dependents) and the run continues; finishes with one PR from the epic branch to the default branch. Use when the user wants to deliver a whole epic unattended as one branch and one PR instead of running one bead at a time. Pass `opencode` to delegate implementation to a headless OpenCode implementor.'
 ---
 
 # Executor Epic Sequential
@@ -19,6 +19,10 @@ The entire point of this skill is to keep the driver session thin: only short pe
 
 Each headless worker starts with **zero memory** of the planner chat or of the beads that ran before it. It can only see the bead contract, persisted inputs, and the code on the epic branch. If the epic's beads are not fresh-session-safe, workers will fail. Recommend running `validate-beads` on the epic first (don't force it).
 
+## Implementor argument
+
+Optional. Pass `opencode` (or `--implementor opencode` / `implementor=opencode`, plus an optional `model=<provider/model[#variant]>`) to have each worker delegate its **implementation step** to a headless OpenCode implementor via the `implement-with-opencode` skill. Record `<IMPLEMENTOR>` (`claude` by default, `opencode` when requested) and `<MODEL>`. The per-bead worker is still a headless `claude -p` session that runs every other step — claim, plan, build-and-test, verification, code review, close. Without the argument, each worker implements inline.
+
 ## Steps
 
 1. If the current repo is not initialized for Beads, stop and tell the user to run the template bootstrap script or at minimum `bd init --prefix <prefix>` plus the repo scaffolding steps. If `bd where` fails, repair with `bd bootstrap --yes` before continuing.
@@ -31,7 +35,8 @@ Each headless worker starts with **zero memory** of the planner chat or of the b
 
 3. **Preflight (fail fast, stop on any failure):**
    - **The working tree must be clean.** Run `git status --porcelain`; if anything is dirty, stop and ask the user to commit or stash first. This skill runs unattended across many tasks and switches to the epic branch — it must not auto-`stash` or auto-WIP-commit and risk losing or mixing in unrelated work. (This intentionally diverges from `executor-task`, which auto-WIP-commits a single switch.)
-   - **The headless runner must exist.** Run `command -v claude`. If it is missing, stop and tell the user this skill needs the `claude` CLI on `PATH` to spawn per-task sessions. (Under Codex, see _Runtime note_ below.)
+   - **The headless runner must exist.** Run `command -v claude`. If it is missing, stop and tell the user this skill needs the `claude` CLI on `PATH` to spawn per-task sessions.
+   - **If `<IMPLEMENTOR>`=`opencode`, the implementor must exist too.** Run `command -v opencode`; if it is missing, stop (see `implement-with-opencode` preflight). The `.opencode/agents/implementor.md` check runs on `<EPIC_BRANCH>` at the end of step 4.
    - Record the starting branch (`git rev-parse --abbrev-ref HEAD`) as `<PREV_BRANCH>` so you can report where the user came from.
 
 4. **Create or resolve the epic branch ONCE** (reuse `executor-epic-task` logic):
@@ -47,6 +52,7 @@ Each headless worker starts with **zero memory** of the planner chat or of the b
      ```
      Note in the final summary that the epic branch was created.
    - After this step the driver session is on `<EPIC_BRANCH>` with a clean tree. Do **not** create any other branch for the rest of the run.
+   - **If `<IMPLEMENTOR>`=`opencode`:** confirm `.opencode/agents/implementor.md` exists on `<EPIC_BRANCH>`. If missing, stop: run `agent-workflow-beads update --with-opencode <repo>`, commit `.opencode/agents/` onto the epic branch, and retry.
 
 5. **Show the plan, then run unattended.** Print the resolved epic, `<EPIC_BRANCH>`, and the initial ready set (`bd ready --parent <EPIC_BEAD_ID> --json`). State that the run will now proceed bead-by-bead without further confirmation. Do not ask for per-bead confirmation after this point.
 
@@ -71,7 +77,7 @@ Each headless worker starts with **zero memory** of the planner chat or of the b
 Run from the repo root, on `<EPIC_BRANCH>`, **strictly one at a time** (the workers share the working tree, so they cannot overlap). Do **not** pass `--bare` — the worker must inherit the project context (`.claude/skills/`, the repo-local `build-and-test`, the `code-reviewer` agent, MCP):
 
 ```bash
-timeout 3600 claude -p "<TASK_PROMPT>" \
+timeout <WORKER_TIMEOUT> claude -p "<TASK_PROMPT>" \
   --model claude-opus-5-5 \
   --effort high \
   --dangerously-skip-permissions \
@@ -83,12 +89,16 @@ timeout 3600 claude -p "<TASK_PROMPT>" \
 
 > You are an executor in `<repo path>`, already checked out on branch `<EPIC_BRANCH>`. Deliver bead `<BEAD_ID>` and only that bead. Run, in order: `beads-claim` (claim `<BEAD_ID>` with `bd update <BEAD_ID> --status in_progress`), `writing-plans`, implementation, `systematic-debugging` if blocked, the repo-local `build-and-test` skill (required), `verification-before-completion`, `requesting-code-review` (dispatch the code-reviewer subagent — required), then `beads-close`. **Commit your work directly on the current branch `<EPIC_BRANCH>`.** Do NOT create or switch branches, do NOT open a PR, do NOT push, do NOT touch any other bead. If you hit a blocker you cannot resolve, do not force it: run `bd update <BEAD_ID> --status blocked` with a short note explaining why, then stop. End your final message with one line: `RESULT: closed|blocked — <short summary>`.
 
+When `<IMPLEMENTOR>`=`opencode`, append to `<TASK_PROMPT>`:
+
+> Implementor: opencode (model `<MODEL>`, or OpenCode's default if empty) — run the implementation step, and every build/test or Critical/Important review fix, via the `implement-with-opencode` skill. Never edit source files yourself.
+
 Notes on the invocation:
 
 - **Model and effort are pinned**, not inherited: `--model claude-opus-5-5 --effort high`. Each worker delivers a full bead (plan + implement + review), so it runs on the strongest model at high reasoning effort rather than whatever default the environment carries. `--effort` accepts `low|medium|high|xhigh|max`; raise to `xhigh` or `max` for harder epics, lower it only to economize on simple ones.
 - **Why headless and not a subagent:** a subagent cannot dispatch a further subagent, so it could not run `requesting-code-review`'s `code-reviewer` subagent. A headless `claude -p` run is a top-level session, so the full cycle — including code review — works unchanged.
 - **Outcome is read from `bd show`, not the `RESULT:` line.** The `RESULT:` line and the worker's `.result` text are for the human summary only; the bead's actual status is authoritative.
-- **Per-task timeout** (`timeout 3600`, ~1h) prevents one stuck bead from hanging the whole run. A timeout counts as a failure → force-block and skip.
+- **Per-task timeout** (`<WORKER_TIMEOUT>` = `3600`, ~1h; `5400` when `<IMPLEMENTOR>`=`opencode`, to fit nested implementor rounds) prevents one stuck bead from hanging the whole run. A timeout counts as a failure → force-block and skip.
 - **Keep the driver thin:** capture the JSON to a temp file; do not dump the worker's full transcript into the driver context. Read back only what you need for the summary.
 
 ### Permissions posture (unattended)
@@ -99,9 +109,9 @@ An unattended worker runs arbitrary, repo-specific build/test commands, so a fix
 
 Each `claude -p` worker is a separate session with its own token usage. On subscription plans, headless `claude -p` draws from the separate Agent SDK credit pool. A large epic spawns one worker per bead — surface this so the user opts in knowingly.
 
-### Runtime note (Codex)
+### Implementor note (OpenCode)
 
-`claude -p` is Claude-Code-specific. When running under Codex there is no `claude` binary; the worker step must be adapted to the Codex headless command. Until that path is verified, this skill guards on `command -v claude` (step 3) and stops with a clear message rather than guessing the Codex invocation.
+In OpenCode mode the worker stays a headless `claude -p` session — it plans, runs `build-and-test`, verification, and code review, and closes the bead — but each implementation round is a nested `opencode run --agent implementor` launched by `implement-with-opencode` from the repo root. The implementor's agent file denies branch/push/PR/`bd` writes, so the epic-branch and Beads invariants above still hold. Outcome is still read from `bd show`; a bead whose implementor rounds are exhausted is blocked by its worker and skipped like any other failure.
 
 ## Hard Rules
 
@@ -128,6 +138,7 @@ ONE branch, ONE PR. Never create a per-task feature branch, never open a per-tas
 **Invokes:**
 
 - a fresh headless `claude -p` **executor cycle per bead** (`beads-claim` → `writing-plans` → impl → `build-and-test` → `verification-before-completion` → `requesting-code-review` → `beads-close`, committing on the epic branch)
+- **`implement-with-opencode`** — inside each worker, for the implementation step, only when `<IMPLEMENTOR>`=`opencode`
 - **`finishing-a-development-branch`** — once, at the end, to push and open the single epic → default-branch PR
 
 **Relation to the per-bead skills:** use `executor-epic-task` (or its worktree variant) when you want each bead reviewed as its own PR into the epic branch; use **this** skill when you want the whole epic delivered unattended as one branch and one PR. Both share the `epic/<epic-bead-id>` branch convention.
