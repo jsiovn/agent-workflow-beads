@@ -181,7 +181,7 @@ You MUST complete each phase before proceeding to the next.
    - Automated test if possible
    - One-off test script if no framework
    - MUST have before fixing
-   - Write the test first and watch it fail, so the fix is proven (red-green). `writing-plans` embeds this step structure for executor work.
+   - Follow the `test-driven-development` skill: write the test first and watch it fail, so the fix is proven (red-green).
 
 2. **Implement Single Fix**
    - Address the root cause identified
@@ -191,8 +191,9 @@ You MUST complete each phase before proceeding to the next.
 
 3. **Verify Fix**
    - Test passes now?
-   - No other tests broken?
+   - No other tests broken? Run the project's whole suite, not just the new test.
    - Issue actually resolved?
+   - Follow `verification-before-completion` before claiming the fix works.
 
 4. **If Fix Doesn't Work**
    - STOP
@@ -244,7 +245,7 @@ If you catch yourself thinking:
 - "Is that not happening?" - You assumed without verifying
 - "Will it show us...?" - You should have added evidence gathering
 - "Stop guessing" - You're proposing fixes without understanding
-- "Ultrathink this" - Question fundamentals, not just symptoms
+- "Ultra-think this" - Question fundamentals, not just symptoms
 - "We're stuck?" (frustrated) - Your approach isn't working
 
 **When you see these:** STOP. Return to Phase 1.
@@ -289,17 +290,3 @@ These techniques are part of systematic debugging and available in this director
 - **`root-cause-tracing.md`** - Trace bugs backward through call stack to find original trigger
 - **`defense-in-depth.md`** - Add validation at multiple layers after finding root cause
 - **`condition-based-waiting.md`** - Replace arbitrary timeouts with condition polling
-
-**Related skills:**
-
-- **`writing-plans`** - Embeds the red-green TDD step structure for the failing test case (Phase 4, Step 1)
-- **`verification-before-completion`** - Verify fix worked before claiming success
-
-## Real-World Impact
-
-From debugging sessions:
-
-- Systematic approach: 15-30 minutes to fix
-- Random fixes approach: 2-3 hours of thrashing
-- First-time fix rate: 95% vs 40%
-- New bugs introduced: Near zero vs common

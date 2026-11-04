@@ -170,7 +170,7 @@ Reuse the exact algorithm from `executor-task-worktree`:
 
 ## Checkout Discipline
 
-- **Setup only — never claim, plan, or implement.** No `bd update --status in_progress`, no `writing-plans`, no `build-and-test`, no executor step. The flow ends at the summary in step 12.
+- **Setup only — never claim, plan, or implement.** No `bd update --claim`, no `writing-plans`, no `build-and-test`, no executor step. The flow ends at the summary in step 12.
 - **Never modify the main working tree.** The only interaction is the read-only copies in steps 8–9 reading git-ignored files out of `<MAIN_ROOT>`; nothing ever writes to it.
 - **Branch format is load-bearing.** `feat/<BEAD_ID>-<TASK_SLUG>` (or `feat/<BEAD_ID>`) for tasks and `epic/<BEAD_ID>` for epics — so `rebase-and-push` and the executors can re-derive the bead and base branch later. Don't invent a different shape.
 - **The worktree directory name mirrors the branch** (`../<repo>-<branch-with-slashes-as-dashes>`) so `git worktree list` makes the active branch obvious.

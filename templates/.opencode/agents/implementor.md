@@ -45,7 +45,7 @@ You may run `bd show <BEAD_ID>` to read the bead contract. Never change Beads st
 
 1. Read the plan file and follow its tasks **in order**. Do not redesign the approach or add features the plan does not ask for.
 2. Stay in scope: touch only the files the plan names (plus tests it implies). If the plan is wrong or impossible as written, stop and report `blocked` with the reason — do not improvise a different design.
-3. Run the plan's fast checks (the per-task test/lint/typecheck commands it lists) as you go, and fix what they surface before committing.
+3. Work test-first, following the `test-driven-development` skill (`.claude/skills/test-driven-development/SKILL.md`): write each task's failing test, watch it fail, then implement. Run the plan's fast checks (the per-task test/lint/typecheck commands it lists) as you go, and fix what they surface before committing.
 4. On a fix round, address exactly the failures or findings given in the prompt — nothing else.
 5. Commit on the **current branch** with conventional-commit messages (`type(scope): description`) and a `Bead: <BEAD_ID>` trailer line. Leave the working tree clean (no uncommitted tracked changes) when you finish.
 6. Never edit the plan file. Never create, switch, rebase, or reset branches. Never push, open PRs, or run `gh`. Never claim, update, close, or create beads.

@@ -34,9 +34,11 @@ The prompt template at `brief.md` (alongside this `SKILL.md`) is **only** the dy
 **1. Get git SHAs:**
 
 ```bash
-BASE_SHA=$(git rev-parse HEAD~1)  # or origin/main
+BASE_SHA=$(git merge-base origin/<DEFAULT_OR_EPIC_BRANCH> HEAD)  # whole branch; or: git rev-parse HEAD~1 for one commit
 HEAD_SHA=$(git rev-parse HEAD)
 ```
+
+Record `BASE_SHA` with a git plumbing command (`merge-base`, `rev-parse`). Do not scrape it from `git log --oneline` output: that output is human-facing and may be reformatted by an output-condensing hook such as rtk.
 
 **2. Dispatch the `code-reviewer` subagent:**
 
@@ -68,7 +70,7 @@ The reviewer always grounds itself in the repo's layered `CLAUDE.md` conventions
 
 You: Let me request a code review before proceeding.
 
-BASE_SHA=$(git log --oneline | grep "Task 1" | head -1 | awk '{print $1}')
+BASE_SHA=$(git merge-base origin/main HEAD)
 HEAD_SHA=$(git rev-parse HEAD)
 
 [Dispatch code-reviewer subagent]
@@ -97,15 +99,22 @@ You: [Fix progress indicators]
 - Catch issues before they compound
 - Fix before moving to next task
 
-**Executing plans:**
+**Executor chain (`executor-*` skills):**
 
-- Review after each batch (3 tasks)
-- Get feedback, apply, continue
+- Review once per bead, after `verification-before-completion` and before `beads-close`
+- Fix Critical and Important findings, re-verify, then close
 
 **Ad-hoc development:**
 
 - Review before merge
 - Review when stuck
+
+## Common Rationalizations
+
+| Excuse | Reality |
+| ------ | ------- |
+| "I'll just review the diff myself instead of dispatching the reviewer" | Reviewing inline burns the context you need to finish the bead, and you grade your own work. Dispatch the subagent: the diff lives in its context and only the findings come back. |
+| "The reviewer needs my session history to understand the change" | Hand it the brief, never the history. That keeps it on the work product, not your reasoning. |
 
 ## Red Flags
 

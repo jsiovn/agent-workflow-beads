@@ -9,19 +9,17 @@ description: 'Use when you have a spec or requirements for a multi-step task, be
 
 ## Overview
 
-Write comprehensive implementation plans assuming the engineer has zero context for our codebase and questionable taste. Document everything they need to know: which files to touch for each task, code, testing, docs they might need to check, how to test it. Give them the whole plan as bite-sized tasks. DRY. YAGNI. TDD. Frequent commits.
-
-Assume they are a skilled developer, but know almost nothing about our toolset or problem domain. Assume they do not know good test design very well.
+Write implementation plans for an engineer who has not seen this codebase or this bead. Assume they write idiomatic code in the project's language once they know the exact interface and the exact test, and that they will make a reasonable choice wherever the plan leaves one open. What they cannot know is what you decided: which files, which names and signatures, which values from the bead, which tests prove each task. Document those. Give them the whole plan as bite-sized tasks. DRY. YAGNI. TDD (follow the `test-driven-development` skill). Frequent commits.
 
 **Announce at start:** "I'm using the writing-plans skill to create the implementation plan."
 
 <HARD-GATE>
-This is an **executor skill**. It should only be invoked in a session where a bead has been claimed via `bd update <id> --status in_progress`. Do NOT invoke this in a planner session that just ran `brainstorming`, `planner-research`, or `beads-planner`.
+This is an **executor skill**. It should only be invoked in a session where a bead has been claimed (`bd update <id> --claim`, status `in_progress`). Do NOT invoke this in a planner session that just ran `brainstorming`, `planner-research`, or `beads-planner`.
 </HARD-GATE>
 
 **Save plans to:** `docs/plans/YYYY-MM-DD-<feature-name>.md`
 
-- **Commit the plan on the current branch as soon as it is saved**, as its own commit: `git add docs/plans/<file>.md && git commit -m "docs(plan): <BEAD_ID> <short title>"`. Plans are tracked files: they travel with the branch (and its worktree) and land in the PR. Committing first also keeps the tree clean before implementation starts. If the plan is revised later (e.g. a rework), commit the revision the same way.
+- **Commit the plan on the current branch as soon as it is saved and self-reviewed** (see Self-Review below), as its own commit: `git add docs/plans/<file>.md && git commit -m "docs(plan): <BEAD_ID> <short title>"`. Plans are tracked files: they travel with the branch (and its worktree) and land in the PR. Committing first also keeps the tree clean before implementation starts. If the plan is revised later (e.g. a rework), commit the revision the same way.
 - A plan committed on a feature or epic branch is not visible from other branches until it merges. If a teammate or a fresh executor elsewhere must read it before then, also inline it into the bead's `notes` (`bd update <id> --append-notes "$(cat docs/plans/<slug>.md)"`) so it syncs via Dolt.
 - (User preferences for plan location override this default)
 
@@ -34,15 +32,19 @@ If the spec covers multiple independent subsystems, it should have been broken i
 Before defining tasks, map out which files will be created or modified and what each one is responsible for. This is where decomposition decisions get locked in.
 
 - Design units with clear boundaries and well-defined interfaces. Each file should have one clear responsibility.
-- Prefer smaller, focused files over large ones that do too much.
+- You reason best about code you can hold in context at once, and your edits are more reliable when files are focused. Prefer smaller, focused files over large ones that do too much.
 - Files that change together should live together. Split by responsibility, not by technical layer.
-- In existing codebases, follow established patterns.
+- In existing codebases, follow established patterns. If the codebase uses large files, don't unilaterally restructure — but if a file you're modifying has grown unwieldy, including a split in the plan is reasonable.
 
 This structure informs the task decomposition. Each task should produce self-contained changes that make sense independently.
 
-## Bite-Sized Task Granularity
+## Task Right-Sizing
 
-**Each step is one action (2-5 minutes):**
+A task is the smallest unit that carries its own test cycle and is worth a fresh reviewer's gate. Fold setup, configuration, scaffolding, and documentation steps into the task whose deliverable needs them; split only where a reviewer could meaningfully reject one task while approving its neighbor. Each task ends with an independently testable deliverable.
+
+## Step Granularity
+
+**Each step is one action with a checkable result:**
 
 - "Write the failing test" - step
 - "Run it to make sure it fails" - step
@@ -65,6 +67,16 @@ This structure informs the task decomposition. Each task should produce self-con
 
 **Tech Stack:** [Key technologies/libraries]
 
+**Bead:** [<BEAD_ID> — the bead this plan implements; executors read `bd show <BEAD_ID>` alongside the plan]
+
+## Global Constraints
+
+[The bead's project-wide requirements — version floors, dependency limits, naming and copy rules, platform requirements — one line each, with exact values copied verbatim from the bead. Every task's requirements implicitly include this section.]
+
+## Review Focus
+
+[Up to five input classes or failure modes the bead implies but no task's tests exercise that are most likely to bite a person using this software — one line each, naming the input or condition and the behavior a reasonable person would expect, most likely first. The bead's silence on an input is not permission for that input to break the program. For each line, add the test that pins it to the task that owns the code.]
+
 ---
 ```
 
@@ -79,6 +91,11 @@ This structure informs the task decomposition. Each task should produce self-con
 - Modify: `exact/path/to/existing.py:123-145`
 - Test: `tests/exact/path/to/test.py`
 
+**Interfaces:**
+
+- Consumes: [what this task uses from earlier tasks — exact signatures]
+- Produces: [what later tasks rely on — exact function names, parameter and return types]
+
 - [ ] **Step 1: Write the failing test**
 
 ```python
@@ -92,12 +109,9 @@ def test_specific_behavior():
 Run: `pytest tests/path/test.py::test_name -v`
 Expected: FAIL with "function not defined"
 
-- [ ] **Step 3: Write minimal implementation**
+- [ ] **Step 3: Implement `function(input: InputType) -> ResultType` in `exact/path/to/file.py`**
 
-```python
-def function(input):
-    return expected
-```
+One line on the approach when the signature and the test leave a choice (which library call, which data structure); a code block only for an algorithm they do not determine.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -111,6 +125,17 @@ git add tests/path/test.py src/path/file.py
 git commit -m "feat: add specific feature"
 ```
 ````
+
+## What a Step Contains
+
+A step is done when the implementer can write exactly one reasonable thing from it: unambiguous, not complete. Each kind of step carries what makes it unambiguous and nothing more:
+
+- **A test step:** the test's name and its assertions, as code, with the bead's exact values in them.
+- **A code step:** the exact signature (name, parameters, return type), the file it lives in, and the specific values the bead pins. The implementer writes the body. A body appears only for an algorithm the signature and tests do not determine, or for exact copy the bead fixes.
+- **A verification step:** the command to run and the output that means it passed.
+- **A reference to another task:** that task's Interfaces block says what to use; the plan does not repeat that task's code.
+
+A plan is the set of decisions the implementer cannot make alone. A plan longer than the code it describes has written the code instead. Lines that decide nothing ("TBD", "handle edge cases", "add appropriate validation", "write tests for the above", a type or function no task defines) are the opposite failure, and the self-review catches both.
 
 ## Verification Section (REQUIRED)
 
@@ -157,26 +182,18 @@ Without this section, `build-and-test` will not know what to verify. Make it spe
 
 If you notice the same verification sequence repeating across multiple beads, that is a signal to specialize the repo-local `build-and-test` skill as stage 2 work.
 
-## Remember
+## Self-Review
 
-- Exact file paths always
-- Complete code in plan (not "add validation")
-- Exact commands with expected output
-- DRY, YAGNI, TDD, frequent commits
+After writing the complete plan, re-read the bead (`bd show <BEAD_ID>`) with fresh eyes and check the plan against it. This is a checklist you run yourself — not a subagent dispatch.
 
-## Plan Review Loop
+1. **Bead coverage:** Skim each requirement and acceptance criterion in the bead. Can you point to a task that implements it? Add a task for any gap.
+2. **Step scan:** Every step must let the implementer write exactly one reasonable thing, and no step may carry more than that: a line that decides nothing is a gap, a function body the signature and tests already determine is a transcript. Fix both.
+3. **Type consistency:** Do the types, signatures, and property names used in later tasks match what earlier tasks defined? `clearLayers()` in Task 3 but `clearFullLayers()` in Task 7 is a bug.
+4. **Review Focus:** For each input class or failure mode the bead implies, is there a task whose tests exercise it? The uncovered ones most likely to bite a person go in Review Focus, and each gets its test added to the owning task. An empty section means you checked and found none, not that you skipped the check.
+5. **Proportion:** A plan several times longer than the bead it implements is a transcript of the program, not a plan. If code blocks are most of the document, replace bodies with signatures, test names and assertions.
+6. **Verification:** The `## Verification` section exists and every command in it is exact.
 
-After completing each chunk of the plan:
-
-1. Dispatch a plan-document-reviewer subagent (see `plan-document-reviewer-prompt.md`) with precisely crafted review context - never your session history.
-   - Provide: chunk content, path to spec document
-2. If issues are found:
-   - Fix the issues in the chunk
-   - Re-dispatch reviewer for that chunk
-   - Repeat until approved
-3. If approved: proceed to next chunk (or execution handoff if last chunk)
-
-**Chunk boundaries:** Use `## Chunk N: <name>` headings to delimit chunks. Each chunk should be <=1000 lines and logically self-contained.
+Fix issues inline and move on; no re-review is needed. Commit the plan after the self-review passes.
 
 ## Execution Handoff
 
@@ -187,6 +204,6 @@ After saving and committing the plan:
 - If this skill was invoked by `/executor-task` or `/executor-task-worktree`, proceed to implementation automatically — do not wait for confirmation.
 - Otherwise, wait for user confirmation before proceeding.
 
-**When proceeding:** Use subagents when they help, with code review (`requesting-code-review`) after each major task.
+**When proceeding:** Implement task by task following `test-driven-development`. Use subagents when they help. The executor chain runs `requesting-code-review` once for the whole bead after verification.
 
 **After implementation is complete:** Invoke `build-and-test` (read the repo-local skill — `.claude/skills/build-and-test/SKILL.md` — and follow it). The skill executes the verification contract from the plan and may be generic or repo-specific depending on the repo's maturity. If `build-and-test` fails, fix the implementation or tighten the plan and re-run it before moving to verification. Do NOT skip this step.

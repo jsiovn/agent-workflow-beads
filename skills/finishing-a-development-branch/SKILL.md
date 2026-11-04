@@ -23,12 +23,12 @@ Before invoking this skill, ensure:
 
 ```bash
 bd where
-git status
-git log --oneline main..HEAD
+git status --porcelain
+git rev-list --count main..HEAD
 ```
 
-- Working tree must be clean (no uncommitted changes)
-- There must be commits ahead of main
+- Working tree must be clean: `git status --porcelain` prints nothing
+- There must be commits ahead of main: the count is greater than `0` (use the PR base instead of `main` when the caller targets an epic branch)
 - `bd where` must succeed in the current checkout
 - If dirty, stop and ask the user to commit or stash
 

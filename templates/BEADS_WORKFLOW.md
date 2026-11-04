@@ -44,7 +44,7 @@ Claims one bead and delivers it.
 
 1. `beads-claim`
 2. `writing-plans`
-3. implement
+3. implement, following `test-driven-development`
 4. `systematic-debugging` if blocked
 5. repo-local `build-and-test`
 6. `verification-before-completion`
@@ -99,4 +99,5 @@ Use this after `bd reopen <bead-id>` and editing the bead's requirements. It sta
 
 - Workflow docs and skills are committed and pushed as part of the normal git flow; refresh them from the template with `agent-workflow-beads update` when needed.
 - If `bd where` or `bd context` fails in the current checkout, repair the repo with `bd bootstrap --yes` before continuing.
-- Use `bd ready` before asking what to work on next.
+- Use `bd ready` before asking what to work on next. Skills list beads with `bd ready --json --brief` (ids and titles only, far smaller output) and read a chosen bead in full with `bd show <id> --json`; they claim with `bd update <id> --claim`.
+- These flags need `bd` 1.3.0 or newer (`agent-workflow-beads check` warns on older versions). On an older `bd`, drop `--brief` and use `--status in_progress` instead of `--claim`.

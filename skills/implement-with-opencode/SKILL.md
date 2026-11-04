@@ -24,7 +24,7 @@ Run these as part of the executor's preflight (in the worktree for worktree vari
 
 1. `command -v opencode` — missing → stop: "OpenCode implementor requested but `opencode` is not on PATH."
 2. `.opencode/agents/implementor.md` exists in the checkout the implementor will run in — missing → stop: "run `agent-workflow-beads update --with-opencode <repo>` and commit `.opencode/agents/` on the branch the executor will cut from (the default branch, or the epic branch for `executor-epic-*`) — a copy committed only on some other feature branch will not reach the new checkout." (The file is committed downstream, so worktrees carry it.)
-3. Tell the user once, before the first run: `--auto` approves every OpenCode tool call that the implementor agent does not explicitly deny (the agent file denies branch/push/PR/`bd` writes), and each round is a separate OpenCode session with its own model cost.
+3. Tell the user once, before the first run: `--auto` approves every OpenCode tool call that the implementor agent does not explicitly deny (the agent file denies branch/push/PR/`bd` writes), and each round is a separate OpenCode session with its own model cost. (Optional: OpenCode sessions do not use Claude Code's hooks; `rtk init -g --opencode` installs rtk's OpenCode plugin to condense their shell output too.)
 
 ## Invocation — the implementation step
 

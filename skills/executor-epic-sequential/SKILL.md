@@ -54,15 +54,15 @@ Optional. Pass `opencode` (or `--implementor opencode` / `implementor=opencode`,
    - After this step the driver session is on `<EPIC_BRANCH>` with a clean tree. Do **not** create any other branch for the rest of the run.
    - **If `<IMPLEMENTOR>`=`opencode`:** confirm `.opencode/agents/implementor.md` exists on `<EPIC_BRANCH>`. If missing, stop: run `agent-workflow-beads update --with-opencode <repo>`, commit `.opencode/agents/` onto the epic branch, and retry.
 
-5. **Show the plan, then run unattended.** Print the resolved epic, `<EPIC_BRANCH>`, and the initial ready set (`bd ready --parent <EPIC_BEAD_ID> --json`). State that the run will now proceed bead-by-bead without further confirmation. Do not ask for per-bead confirmation after this point.
+5. **Show the plan, then run unattended.** Print the resolved epic, `<EPIC_BRANCH>`, and the initial ready set (`bd ready --parent <EPIC_BEAD_ID> --json --brief`). State that the run will now proceed bead-by-bead without further confirmation. Do not ask for per-bead confirmation after this point.
 
 6. **The loop.** Keep three sets — `done`, `blocked`, `attempted` — and a hard iteration cap (≈ the epic's descendant count, backstop 50). Each iteration:
-   1. `bd ready --parent <EPIC_BEAD_ID> --json`; drop any bead already in `done` or `blocked`.
+   1. `bd ready --parent <EPIC_BEAD_ID> --json --brief`; drop any bead already in `done` or `blocked`.
    2. If the remaining set is empty, **break** — the epic has no more ready work.
    3. Pick the next bead: lowest priority number first (highest priority), ties broken by id for determinism. Record it as `<BEAD_ID>` and add it to `attempted`.
-   4. **Execute `<BEAD_ID>` in a fresh headless session** — see _Per-task headless run_ below. Run exactly one at a time.
+   4. Record the epic branch tip before the worker: `TIP_BEFORE=$(git rev-parse HEAD)`. **Execute `<BEAD_ID>` in a fresh headless session** — see _Per-task headless run_ below. Run exactly one at a time.
    5. **Determine the outcome from Beads, never from the worker's self-report:** `bd show <BEAD_ID> --json`.
-      - status `closed` → add to `done`. Sanity-check that a new commit landed on `<EPIC_BRANCH>` (`git log --oneline <DEFAULT_BRANCH>..HEAD`); if nothing was committed, treat as blocked.
+      - status `closed` → add to `done`. Sanity-check that a new commit landed on `<EPIC_BRANCH>`: if `git rev-parse HEAD` still equals `TIP_BEFORE`, nothing was committed — treat as blocked.
       - status `blocked` → add to `blocked`, record the bead's blocker note.
       - still `open`/`in_progress` (worker crashed, timed out, or no-op'd) → force `bd update <BEAD_ID> --status blocked` with a reason like "executor-epic-sequential: headless run ended without closing the bead", add to `blocked`.
    6. **Infinite-loop guard:** a bead in `attempted` must end each iteration in `done` or `blocked`. If it is neither, force-block it (step 6.5 covers this). Because failed/blocked beads stay out of `bd ready`, their dependents never become ready — that is exactly the skip-and-continue behavior. Never re-run a bead that is already in `attempted` and still not `done`.
@@ -87,7 +87,7 @@ timeout <WORKER_TIMEOUT> claude -p "<TASK_PROMPT>" \
 
 `<TASK_PROMPT>` instructs the worker to run the full executor cycle for **exactly** `<BEAD_ID>` and nothing else:
 
-> You are an executor in `<repo path>`, already checked out on branch `<EPIC_BRANCH>`. Deliver bead `<BEAD_ID>` and only that bead. Run, in order: `beads-claim` (claim `<BEAD_ID>` with `bd update <BEAD_ID> --status in_progress`), `writing-plans`, implementation, `systematic-debugging` if blocked, the repo-local `build-and-test` skill (required), `verification-before-completion`, `requesting-code-review` (dispatch the code-reviewer subagent — required), then `beads-close`. **Commit your work directly on the current branch `<EPIC_BRANCH>`.** Do NOT create or switch branches, do NOT open a PR, do NOT push, do NOT touch any other bead. If you hit a blocker you cannot resolve, do not force it: run `bd update <BEAD_ID> --status blocked` with a short note explaining why, then stop. End your final message with one line: `RESULT: closed|blocked — <short summary>`.
+> You are an executor in `<repo path>`, already checked out on branch `<EPIC_BRANCH>`. Deliver bead `<BEAD_ID>` and only that bead. Run, in order: `beads-claim` (claim `<BEAD_ID>` with `bd update <BEAD_ID> --claim`), `writing-plans`, implementation following `test-driven-development`, `systematic-debugging` if blocked, the repo-local `build-and-test` skill (required), `verification-before-completion`, `requesting-code-review` (dispatch the code-reviewer subagent — required), then `beads-close`. **Commit your work directly on the current branch `<EPIC_BRANCH>`.** Do NOT create or switch branches, do NOT open a PR, do NOT push, do NOT touch any other bead. If you hit a blocker you cannot resolve, do not force it: run `bd update <BEAD_ID> --status blocked` with a short note explaining why, then stop. End your final message with one line: `RESULT: closed|blocked — <short summary>`.
 
 When `<IMPLEMENTOR>`=`opencode`, append to `<TASK_PROMPT>`:
 
@@ -108,6 +108,8 @@ An unattended worker runs arbitrary, repo-specific build/test commands, so a fix
 ### Cost note
 
 Each `claude -p` worker is a separate session with its own token usage. On subscription plans, headless `claude -p` draws from the separate Agent SDK credit pool. A large epic spawns one worker per bead — surface this so the user opts in knowingly.
+
+Workers inherit the machine's global Claude Code hooks, so if rtk is set up (`agent-workflow-beads check` reports it) every worker's Bash output is condensed too; `rtk gain` afterwards shows the saving. The driver's own decisions read only `bd … --json` and git plumbing, which rtk passes through unchanged.
 
 ### Implementor note (OpenCode)
 
@@ -137,7 +139,7 @@ ONE branch, ONE PR. Never create a per-task feature branch, never open a per-tas
 
 **Invokes:**
 
-- a fresh headless `claude -p` **executor cycle per bead** (`beads-claim` → `writing-plans` → impl → `build-and-test` → `verification-before-completion` → `requesting-code-review` → `beads-close`, committing on the epic branch)
+- a fresh headless `claude -p` **executor cycle per bead** (`beads-claim` → `writing-plans` → impl (`test-driven-development`) → `build-and-test` → `verification-before-completion` → `requesting-code-review` → `beads-close`, committing on the epic branch)
 - **`implement-with-opencode`** — inside each worker, for the implementation step, only when `<IMPLEMENTOR>`=`opencode`
 - **`finishing-a-development-branch`** — once, at the end, to push and open the single epic → default-branch PR
 

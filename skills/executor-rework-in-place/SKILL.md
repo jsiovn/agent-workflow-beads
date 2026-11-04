@@ -57,7 +57,7 @@ Optional. Pass `opencode` (or `--implementor opencode` / `implementor=opencode`,
 7. Run the executor cycle for `<BEAD_ID>` — **every step in order**:
    - `beads-claim` — re-claim the reopened bead. If `bd` reports the bead is not in a claimable state (already closed, blocked, owned by someone else, etc.), stop and surface the state to the user.
    - `writing-plans` — REQUIRED. The bead's requirements changed; the existing plan is presumed stale. When invoking writing-plans, explicitly note "the bead was reworked; regenerate or amend the existing plan against the updated bead text" so an existing plan file is overwritten or amended rather than blindly reused.
-   - implementation — Claude inline (default), or `implement-with-opencode` when `<IMPLEMENTOR>`=`opencode`
+   - implementation — Claude inline following `test-driven-development` (default), or `implement-with-opencode` when `<IMPLEMENTOR>`=`opencode`
    - `systematic-debugging` if blocked
    - **`build-and-test`** — REQUIRED after implementation. Read the repo-local skill (`.claude/skills/build-and-test/SKILL.md`) and follow it. Do NOT skip this step.
    - `verification-before-completion` (run the verification commands)

@@ -24,6 +24,7 @@ flowchart LR
         BC[beads-claim]
         WP[writing-plans]
         IMP[(implementation)]
+        TDD[test-driven-development]
         SD[systematic-debugging]
         VBC[verification-before-completion]
         RCR[requesting-code-review]
@@ -67,7 +68,8 @@ flowchart LR
 | `plan-beads`                     | planner (orchestrator)          | Run a full planner session end-to-end              | user                                                                      | `brainstorming` → `planner-research` → `beads-planner` → `validate-beads`          |
 | `validate-beads`                 | planner                         | Quality gate before execution                      | `plan-beads`, user                                                        | —                                                                                  |
 | `beads-claim`                    | executor                        | Find + claim one ready bead                        | `executor-task` orchestrators, user                                       | —                                                                                  |
-| `writing-plans`                  | executor                        | Write the implementation plan for the claimed bead | `executor-task` orchestrators, user                                       | `requesting-code-review` (for plan review during chunked drafting)                 |
+| `writing-plans`                  | executor                        | Write the implementation plan for the claimed bead | `executor-task` orchestrators, user                                       | `test-driven-development` (referenced by every task's step structure)             |
+| `test-driven-development`        | executor                        | Red-green-refactor discipline for the implementation step (whole suite defines green) | implementation step (all executor orchestrators), `writing-plans`, `systematic-debugging`, the OpenCode implementor | — |
 | `systematic-debugging`           | executor                        | Root-cause investigation when blocked              | implementation step                                                       | —                                                                                  |
 | `responsive-layout-testing`      | executor                        | Screenshot a page at 6 widths via Chrome DevTools MCP, fix overflow/layout breaks | implementation step, user                                  | `systematic-debugging`, `verification-before-completion` (defers completion claim) |
 | `verification-before-completion` | executor                        | Evidence-before-claims gate                        | `executor-task` orchestrators                                             | —                                                                                  |
@@ -138,9 +140,9 @@ The `epic-*` variants resolve the parent epic from `bd show <BEAD_ID>` (or take 
 ```mermaid
 flowchart TD
     START([User: 'execute bead X'<br/>or 'execute next ready']) --> ET[executor-task /<br/>executor-task-worktree /<br/>executor-epic-task /<br/>executor-epic-task-worktree]
-    ET --> S1[1. beads-claim<br/>bd update --status in_progress]
+    ET --> S1[1. beads-claim<br/>bd update --claim]
     S1 --> S2[2. writing-plans<br/>save to docs/plans/...]
-    S2 --> S3[3. implementation]
+    S2 --> S3[3. implementation<br/>test-driven-development]
     S3 --> Q1{Stuck?}
     Q1 -->|yes| SD[systematic-debugging]
     SD --> S3
@@ -275,6 +277,7 @@ flowchart TD
 
     ET --> BC
     ET --> WP[writing-plans]
+    ET --> TDD[test-driven-development]
     ET -.-> SD[systematic-debugging]
     ET --> BAT[build-and-test]
     ET --> VBC[verification-before-completion]
@@ -284,6 +287,7 @@ flowchart TD
 
     ETW --> BC
     ETW --> WP
+    ETW --> TDD
     ETW -.-> SD
     ETW --> BAT
     ETW --> VBC
@@ -293,6 +297,7 @@ flowchart TD
 
     EET --> BC
     EET --> WP
+    EET --> TDD
     EET -.-> SD
     EET --> BAT
     EET --> VBC
@@ -302,6 +307,7 @@ flowchart TD
 
     EETW --> BC
     EETW --> WP
+    EETW --> TDD
     EETW -.-> SD
     EETW --> BAT
     EETW --> VBC
@@ -311,6 +317,7 @@ flowchart TD
 
     ERIP --> BC
     ERIP --> WP
+    ERIP --> TDD
     ERIP -.-> SD
     ERIP --> BAT
     ERIP --> VBC
@@ -335,7 +342,7 @@ flowchart TD
     classDef agent fill:#fffde1,stroke:#9e9d24
 
     class PB,BS,PR,BP,VB planner
-    class ET,ETW,EET,EETW,ERIP,EES,EESW,BC,WP,SD,BAT,VBC,RCR,BCL,FDB executor
+    class ET,ETW,EET,EETW,ERIP,EES,EESW,BC,WP,TDD,SD,BAT,VBC,RCR,BCL,FDB executor
     class APC,PA,ABR,PLB,RB,CNW maint
     class AGCR,AGPF,AGPA,HW agent
 ```
@@ -378,7 +385,7 @@ If you're trying to learn the system from scratch, read the SKILL.md files in th
 2. `brainstorming` — the heart of planner mode
 3. `beads-planner` + `validate-beads` — how a plan becomes Beads
 4. `executor-task` — the canonical executor chain
-5. `writing-plans` — the executor's most opinionated step
+5. `writing-plans` — the executor's most opinionated step (then `test-driven-development`, which every plan's task steps follow)
 6. `verification-before-completion` — why "tests pass" requires evidence
 7. `executor-task-worktree` — the parallel-safe variant
 8. `executor-epic-task` and `executor-epic-task-worktree` — same chain, but base/target the bead's parent epic branch instead of main

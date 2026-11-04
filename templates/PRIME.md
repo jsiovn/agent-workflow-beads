@@ -1,11 +1,11 @@
 # Prime
 
-> **Context Recovery**: start from `bd ready`, `bd list --status open`, `bd list --status in_progress`, and `bd show <id>`.
+> **Context Recovery**: start from `bd ready`, `bd list --status open`, `bd list --status in_progress`, and `bd show <id>`. Add `--json --brief` to `bd ready`/`bd list` when you only need ids and titles.
 
 ## Core Rules
 
 - Default: use `bd` for all issue tracking
-- Do not create parallel TODO lists or markdown trackers
+- Do not create parallel TODO lists, TodoWrite/TaskCreate lists, or markdown trackers
 - Live `.beads` state is local-only and not meant for Git sharing
 - Run one top-level executor session at a time per branch
 - Planner sessions stay planner-only; executor sessions do implementation
@@ -15,7 +15,7 @@
 ```bash
 bd ready
 bd show <id>
-bd update <id> --status=in_progress
+bd update <id> --claim
 bd close <id> --reason="Completed"
 bd dep add <child-id> <parent-id>
 git checkout -b feat/<bead-id>

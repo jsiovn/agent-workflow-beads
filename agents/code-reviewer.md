@@ -109,6 +109,10 @@ Read every changed file in full when the diff is non-trivial — never review ba
 - Backward compatibility considered when relevant
 - Documentation updated when contracts changed
 
+## Behavior the plan does not mention
+
+The plan says what the change must do; it does not list every input, environment, or condition the code will meet. For behavior the plan is silent on, judge by what a reasonable person using this software would expect. A reasonable expectation is a requirement, and the plan's silence is not permission. Grade such findings by their effect on that person.
+
 ## Output format
 
 ```
@@ -135,6 +139,9 @@ For each issue:
 ### Recommendations
 [Improvements for code quality, architecture, or process]
 
+### Declined to judge
+[Every behavior you considered and set aside as outside the plan or bead, one line each, with the reason. The executor rules on each line; nothing is dropped silently. Write "None" if you set nothing aside.]
+
 ### Assessment
 **Ready to merge:** Yes / No / With fixes
 **Reasoning:** [1–2 sentences]
@@ -157,3 +164,4 @@ For each issue:
 - Comment on code outside the supplied diff range.
 - Flag missing error handling for impossible cases (trust internal invariants).
 - Avoid the merge verdict — always pick one.
+- Dispatch subagents. Do the whole review yourself; if the diff is large, review it in passes and say so.

@@ -21,7 +21,7 @@ Optional. Pass `opencode` (or `--implementor opencode` / `implementor=opencode`,
 2. Determine the target bead **before touching anything**:
    - if the user supplied a bead id in the current request, use that bead
    - if the user supplied freeform selector text, treat it as a selector or hint
-   - otherwise inspect `bd ready --json` and choose the best ready bead autonomously
+   - otherwise inspect `bd ready --json --brief` (ids, titles, types, priorities — `bd show <id> --json` a candidate when its title is not enough) and choose the best ready bead autonomously
    - preference order: a ready bead clearly related to the current repo context or recent planner discussion, else the highest-priority ready bead
    - if the choice is ambiguous, ask before proceeding
    - record the chosen bead id as `<BEAD_ID>` (e.g. `lexify-wyk`) for the rest of the flow
@@ -107,7 +107,7 @@ Optional. Pass `opencode` (or `--implementor opencode` / `implementor=opencode`,
 12. Run the executor cycle for `<BEAD_ID>` — **every step in order, operating inside `<WORKTREE_PATH>`**:
     - `beads-claim`
     - `writing-plans`
-    - implementation — Claude inline (default), or `implement-with-opencode` when `<IMPLEMENTOR>`=`opencode` (run it with the checkout = `<WORKTREE_PATH>`; its preflight re-checks `.opencode/agents/implementor.md` there)
+    - implementation — Claude inline following `test-driven-development` (default), or `implement-with-opencode` when `<IMPLEMENTOR>`=`opencode` (run it with the checkout = `<WORKTREE_PATH>`; its preflight re-checks `.opencode/agents/implementor.md` there)
     - `systematic-debugging` if blocked
     - **`build-and-test`** — REQUIRED after implementation. Read the repo-local skill from the worktree (`.claude/skills/build-and-test/SKILL.md`) and follow it. Do NOT skip this step.
     - `verification-before-completion` (run the verification commands)

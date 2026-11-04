@@ -21,10 +21,10 @@ Keep repo exploration local. Verify the actual environment before running build,
 ## Essential Commands
 
 ```bash
-bd ready --json
+bd ready --json --brief
 bd show <id> --json
 bd create --title="Summary" --description="Details" --type=task|bug|feature|epic --priority=2
-bd update <id> --status=in_progress
+bd update <id> --claim
 bd close <id> --reason="Completed"
 bd dep add <child-id> <parent-id>
 git checkout -b feat/<bead-id>

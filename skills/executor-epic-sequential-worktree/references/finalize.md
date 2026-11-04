@@ -1,0 +1,10 @@
+# Finalize (step 12 of `executor-epic-sequential-worktree`)
+
+Read this file when the loop breaks, then follow it in order. Placeholders are the values recorded earlier in the run.
+
+12. **Finalize** from inside `<WORKTREE_PATH>`. When the loop breaks:
+    - **If nothing was delivered, skip the PR.** If `done` is empty — or `git -C <WORKTREE_PATH> rev-list --count origin/<DEFAULT_BRANCH>..<EPIC_BRANCH>` is `0` — there are no commits to base a PR on, and `gh pr create` would hard-fail with "No commits between …". Skip the push and PR; report the blocked/skipped list as the outcome instead, then jump to the summary.
+    - `git -C <WORKTREE_PATH> push -u origin <EPIC_BRANCH>`
+    - follow `finishing-a-development-branch` to open **one** PR: `gh pr create --base <DEFAULT_BRANCH> --title "<conventional-commit title>" --body "..."` (run from within the worktree). The body must include an `Epic: <EPIC_BEAD_ID>` line, a list of delivered beads (with ids), and a list of blocked/skipped beads with one-line reasons. If `gh` is unavailable, report the branch name and intended `--base <DEFAULT_BRANCH>` for manual PR creation instead of failing.
+    - **Leave the worktree in place.** Do not remove it — the user returns to it for the epic PR's review comments, screenshots, and CI fixes. Removal is a separate manual step via the `cleanup-worktree` skill.
+    - report a concise summary: **delivered** (closed + commit), **blocked/skipped** (with reasons), `<EPIC_BRANCH>`, `<DEFAULT_BRANCH>` (PR base), the PR URL, `<WORKTREE_PATH>` (with the exact `cd <WORKTREE_PATH>` to enter it), and a reminder that the main working tree (`<MAIN_BRANCH>`) was never touched. Note if the epic branch was created by this run. Because every `bd` write happened in the worktree and is committed on `<EPIC_BRANCH>`, the **main checkout's** `bd ready`/`bd show` will keep showing these beads as open/in_progress until the epic PR merges — say so, so the user doesn't think nothing happened. Point to `cleanup-worktree` for teardown.

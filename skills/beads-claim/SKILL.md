@@ -28,9 +28,9 @@ Do not invoke this skill when:
 1. If the current repo is not initialized for Beads, stop and tell the user to run the template bootstrap script or at minimum `bd init --prefix <prefix>` plus the repo scaffolding steps.
 2. Find ready work:
    ```bash
-   bd ready --json
+   bd ready --json --brief
    ```
-3. Select a bead. If the user specified one, use that. Otherwise, choose the best ready bead based on current context, priority, and dependencies.
+3. Select a bead. If the user specified one, use that. Otherwise, choose the best ready bead based on current context, priority, and dependencies. `--brief` omits descriptions and notes to keep the list small; step 4 reads the full bead.
 4. Show the bead details before claiming:
    ```bash
    bd show <id> --json
@@ -39,9 +39,9 @@ Do not invoke this skill when:
    - present the bead title and description first
    - if this skill was invoked by one of the `executor-*` orchestrator skills and the bead choice is unambiguous, proceed without an extra confirmation turn
    - if the choice is ambiguous, ask the user before claiming
-6. Claim it:
+6. Claim it atomically (sets you as assignee and status `in_progress`; idempotent if you already hold it, and it refuses a bead someone else claimed):
    ```bash
-   bd update <id> --status in_progress
+   bd update <id> --claim
    ```
 7. Report the claimed bead id and title, then proceed to `writing-plans` for the execution plan.
 

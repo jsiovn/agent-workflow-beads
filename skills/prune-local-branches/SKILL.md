@@ -47,12 +47,15 @@ git for-each-ref \
 
 Keep only rows whose **second** (TAB-separated) field is exactly `[gone]`. The TAB-separated fields are: `branch <TAB> track <TAB> worktreepath (may be empty) <TAB> tipSHA <TAB> subject`. Refnames cannot contain TAB or spaces, so this parse is robust, and `%(worktreepath)` gives you the attached worktree path in the same pass — no separate branch→path lookup needed.
 
-A quick gone-only filter:
+A quick gone-only filter — let git do the matching, so no pipe stage (which an output-condensing hook such as rtk may rewrite) and no `awk` field reference (which Claude Code would replace with the skill's arguments) is involved:
 
 ```bash
-git for-each-ref --format='%(refname:short)%09%(upstream:track)%09%(worktreepath)' refs/heads \
-  | awk -F'\t' '$2 == "[gone]"'
+git for-each-ref \
+  --format='%(if:equals=[gone])%(upstream:track)%(then)%(refname:short)%09%(worktreepath)%(end)' \
+  refs/heads
 ```
+
+Non-empty lines are the gone branches (`branch <TAB> worktreepath`); ignore blank lines, which are the branches with a live or no upstream.
 
 If no rows remain, report **"No stale local branches found"** and stop.
 

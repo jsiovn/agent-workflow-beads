@@ -1,10 +1,10 @@
 # Agent Workflow Beads
 
-A scaffold that installs a consistent **planner → executor** workflow for **AI coding agents** into any repo — a shared set of skills, subagents, and [Beads](https://github.com/steveyegge/beads)-backed task tracking so that **Claude Code** (the primary AI) follows the same playbook in every project, with an optional headless **OpenCode** implementor that executors can hand the coding step to. You plan once, execute one bead per PR, and ship.
+A scaffold that installs a consistent **planner → executor** workflow for **AI coding agents** into any repo — a shared set of skills, subagents, and [Beads](https://github.com/gastownhall/beads)-backed task tracking so that **Claude Code** (the primary AI) follows the same playbook in every project, with an optional headless **OpenCode** implementor that executors can hand the coding step to. You plan once, execute one bead per PR, and ship.
 
 This repo runs nothing itself — it's developer tooling for AI coding agents, not a CI/CD or GitHub Actions "workflow." You install the `agent-workflow-beads` CLI once on your machine, then run one command per project to scaffold (or refresh) the workflow inside that project.
 
-> **Inspired by** [obra/superpowers](https://github.com/obra/superpowers) — the execution-quality skills are curated copies adapted to a Beads-native flow — and [Beads](https://github.com/steveyegge/beads), which backs all task tracking. See [ATTRIBUTION.md](ATTRIBUTION.md).
+> **Inspired by** [obra/superpowers](https://github.com/obra/superpowers) — the execution-quality skills are curated copies adapted to a Beads-native flow — and [Beads](https://github.com/gastownhall/beads), which backs all task tracking. See [ATTRIBUTION.md](ATTRIBUTION.md).
 
 ---
 
@@ -15,11 +15,14 @@ You need these machine-wide tools before bootstrapping any project:
 | Tool       | What for                                  | Verify             |
 | ---------- | ----------------------------------------- | ------------------ |
 | Node.js ≥18 | Runs the `agent-workflow-beads` CLI (via `npm`) | `node --version`   |
-| `bd`       | Beads CLI (issue tracking)                | `bd version`       |
+| `bd`       | Beads CLI (issue tracking), **1.3.0 or newer** | `bd version`       |
 | `dolt`     | Storage backend used by `bd`              | `dolt version`     |
 | `opencode` | _Optional_ — only for the OpenCode implementor (`--with-opencode`) | `opencode --version` |
+| `rtk`      | _Optional_ — condenses Bash output for Claude Code to save tokens (per-machine hook) | `rtk gain` |
 
 `git` is also required (you almost certainly already have it). Per-OS instructions for installing `bd` and `dolt` are in [docs/INSTALL.md](docs/INSTALL.md). The CLI itself is pure Node — there is no Python, bash, or PowerShell dependency, and it works the same on macOS, Linux, and Windows.
+
+**Saving tokens with rtk (optional).** [rtk](https://github.com/rtk-ai/rtk) condenses shell-command output before Claude Code reads it. It is a per-machine Claude Code hook, so the template does not install it; `agent-workflow-beads check` reports whether it is set up. See "Optional: rtk" in [docs/INSTALL.md](docs/INSTALL.md).
 
 To verify the runtime tools are in place in one shot (after installing the CLI, below):
 
@@ -141,6 +144,7 @@ Other useful skills you'll reach for:
 
 | Skill                            | What it does                                                                                  | When to use                                                              |
 | -------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `test-driven-development`        | Red-green-refactor: failing test first, minimal code, whole suite green                       | The implementation step of every executor; any feature or bugfix         |
 | `systematic-debugging`           | Structured root-cause investigation before proposing a fix                                    | Any bug, test failure, or unexpected behavior                            |
 | `verification-before-completion` | Forces real verification commands before claiming "done"                                      | Before committing, opening a PR, or asserting success                    |
 | `build-and-test`                 | Runs the literal `## Verification` section of the current execution plan                      | After implementing changes; specialize per repo in stage 2               |

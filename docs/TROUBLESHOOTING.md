@@ -64,3 +64,25 @@ Fix:
    ```
 
 3. Ignore or remove archived `br` backups under `.beads/backup/` if they are no longer needed.
+
+## Upgrading `bd` to 1.3.x
+
+The workflow skills need `bd` 1.3.0 or newer. `agent-workflow-beads check` warns on
+older versions.
+
+1. Back up first: `bd export --all -o beads-backup.jsonl`.
+2. bd 1.3.0 migrates the schema on first run. A **shared** Dolt sql-server is never
+   migrated automatically: run `bd migrate schema` against it explicitly.
+3. If the workspace went through bd 1.3.2's blocked-state migration, run
+   `bd recompute-blocked` once in it so `bd ready` reflects the right blocked set.
+4. bd 1.3.3: do not run `bd compact` or `bd flatten` on a clone that picked up the
+   migration through `bd dolt pull` or `bd bootstrap` (upstream known issue
+   gastownhall/beads#7039). `bd rules compact` now needs `--force` to apply.
+
+Symptoms of an outdated `bd`:
+
+- `bd ready --json --brief` fails with an unknown-flag error
+- `bd update <id> --claim` fails with an unknown-flag error
+
+Fix: upgrade `bd` (see [INSTALL.md](INSTALL.md)). Until then, drop `--brief` and use
+`bd update <id> --status in_progress` instead of `--claim`.

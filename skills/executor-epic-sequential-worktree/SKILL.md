@@ -1,18 +1,13 @@
 ---
 name: executor-epic-sequential-worktree
-description: 'Use when you want to deliver a whole epic unattended as ONE branch and ONE PR WITHOUT disturbing in-flight work in the main checkout. Runs every ready child bead of one epic sequentially in a fresh sibling git worktree checked out on the epic branch (epic/<epic-bead-id>) so the main working tree is never touched — each bead executes in its own fresh headless `claude -p` session (clean context per task), committing directly onto the single epic branch; a failed bead is marked blocked and skipped (along with its dependents) and the run continues; finishes with one PR from the epic branch to the default branch and leaves the worktree in place for follow-up (review comments, CI fixes). Use the `cleanup-worktree` skill to remove the worktree once the PR has landed. Pass `opencode` to delegate implementation to a headless OpenCode implementor.'
+description: 'Use when you want to deliver a whole epic unattended as ONE branch and ONE PR without disturbing in-flight work in the main checkout — every ready child bead runs in its own fresh headless `claude -p` session inside a sibling worktree on epic/<epic-bead-id>, and the worktree is left in place for PR follow-up. Pass `opencode` to delegate implementation to a headless OpenCode implementor.'
 ---
 
 # Executor Epic Sequential Worktree
 
 Drive an entire epic to completion in one go **without touching the main working tree**: create **one** sibling git worktree checked out on the epic branch (`epic/<epic-bead-id>`), then execute **every ready child bead** of that epic, one after another, each in its **own fresh headless `claude -p` session** so no task's context leaks into the next. Every task commits directly onto the single epic branch **inside the worktree**. At the end, open **one** PR from the epic branch to the default branch and leave the worktree in place for follow-up.
 
-This is the worktree-isolated sibling of `executor-epic-sequential`. Both deliver a whole epic unattended as one branch and one PR; the difference is **where** the work happens:
-
-- `executor-epic-sequential` checks the **main working tree** out onto the epic branch (requires a clean main tree, switches branches).
-- **this skill** never touches the main working tree — it cuts a sibling worktree at `../<repo>-epic-<epic-bead-id>` and runs the whole epic there, so the main checkout keeps its in-flight work undisturbed.
-
-Use this variant when the main tree has active work that must not be disturbed, or when you want the epic to run in an isolated directory you can `cd` into for the PR's review comments and CI fixes afterward.
+This is the worktree-isolated sibling of `executor-epic-sequential`, which instead checks the **main** working tree out onto the epic branch (and so needs a clean main tree). Use this variant when the main tree has in-flight work that must stay undisturbed.
 
 ## Iron Law
 
@@ -43,7 +38,7 @@ Optional. Pass `opencode` (or `--implementor opencode` / `implementor=opencode`,
    - **The headless runner must exist.** Run `command -v claude`. If it is missing, stop and tell the user this skill needs the `claude` CLI on `PATH` to spawn per-task sessions.
    - **If `<IMPLEMENTOR>`=`opencode`, the implementor must exist too.** Run `command -v opencode`; if it is missing, stop (see `implement-with-opencode` preflight). The `.opencode/agents/implementor.md` check runs inside the worktree in step 9.
    - Record `<MAIN_ROOT>` = `git rev-parse --show-toplevel`, `<REPO_NAME>` = `basename <MAIN_ROOT>`, and the main tree's current branch (`git rev-parse --abbrev-ref HEAD`) as `<MAIN_BRANCH>` so you can report it. Paths derive from the current toplevel, so running this from inside an existing worktree is fine.
-   - **Clear stale worktree registrations, then ensure the epic branch is not checked out elsewhere.** First run `git worktree prune` — if a previous run's worktree directory was removed manually (`rm -rf` instead of `cleanup-worktree`/`git worktree remove`), git still registers the branch as checked out at the now-missing path and `git worktree add` would later refuse it with "already used by worktree at &lt;missing path&gt;". Then run `git worktree list --porcelain`. A branch can only be checked out in one worktree at a time, so if `<EPIC_BRANCH>` is *still* checked out (in the main tree or another live worktree), `git worktree add` will refuse. Stop and tell the user: if the conflicting directory no longer exists, `git worktree prune` already cleared it — retry; otherwise either switch that checkout off `<EPIC_BRANCH>`, or — if the epic branch is checked out in the main tree — use the non-worktree `executor-epic-sequential` instead.
+   - **Clear stale worktree registrations, then ensure the epic branch is not checked out elsewhere.** Run `git worktree prune` (a manually deleted worktree directory otherwise stays registered and blocks `git worktree add`), then `git worktree list --porcelain`. A branch lives in only one worktree, so if `<EPIC_BRANCH>` is still checked out in a live checkout, stop: ask the user to switch that checkout off it, or — if it is the main tree — use the non-worktree `executor-epic-sequential` instead.
 
 4. **Compute the worktree path** (slashes → dashes, mirroring the worktree-skill convention — the epic branch `epic/<EPIC_BEAD_ID>` becomes the suffix `epic-<EPIC_BEAD_ID>`):
 
@@ -56,72 +51,18 @@ Optional. Pass `opencode` (or `--implementor opencode` / `implementor=opencode`,
 
 5. **Detect `<DEFAULT_BRANCH>`:** `git symbolic-ref refs/remotes/origin/HEAD` (strip the `origin/` prefix) if present; otherwise `main` if it exists, else `master`.
 
-6. **Resolve the epic branch and make sure it exists on `origin`** so the worktree can always be cut from the up-to-date `origin/<EPIC_BRANCH>`. Probe and **record both results** (step 7 chooses its worktree-add command from `LOCAL_REF`, so do not skip recording it):
-   - `LOCAL_REF` = does `git rev-parse --verify <EPIC_BRANCH>` succeed? (a local branch exists)
-   - `ORIGIN_REF` = does `git ls-remote --exit-code --heads origin <EPIC_BRANCH>` succeed? (the branch is on origin)
+6–9. **Prepare the worktree. REQUIRED: read `references/worktree-setup.md` (alongside this `SKILL.md`) in full before starting step 6, and follow it exactly** — do not reconstruct these steps from memory. In short, it has you:
+   - **6.** Probe and record `LOCAL_REF` / `ORIGIN_REF` for `<EPIC_BRANCH>`, then make sure the branch exists on `origin` (fetch, push a local-only branch, or create it from `origin/<DEFAULT_BRANCH>` with `git branch` — never touching the main tree).
+   - **7.** `git worktree add` at `<WORKTREE_PATH>` checked out **on** `<EPIC_BRANCH>` at the fetched `origin/<EPIC_BRANCH>` tip, choosing the command strictly by the recorded `LOCAL_REF`; stop on a failed `merge --ff-only`.
+   - **8.** Seed the git-ignored `.env*` family from `<MAIN_ROOT>` into the worktree — once, up front, unconditionally. Never seed `.beads/`, `*.db`, or `.dolt/`.
+   - **9.** Prove Beads health from inside the worktree with `bd show <EPIC_BEAD_ID> --json` (not `bd where`), and, when `<IMPLEMENTOR>`=`opencode`, confirm `.opencode/agents/implementor.md` exists there.
 
-   Then act on the combination:
-   - **on origin (`ORIGIN_REF`=yes):** `git fetch origin <EPIC_BRANCH>` (this covers both "origin only" and "origin + local").
-   - **local only (`ORIGIN_REF`=no, `LOCAL_REF`=yes):** push it so the worktree can branch from `origin/<EPIC_BRANCH>` (do not move or check out the local ref); now `ORIGIN_REF`=yes:
-     ```
-     git push -u origin <EPIC_BRANCH>:<EPIC_BRANCH>
-     git fetch origin <EPIC_BRANCH>
-     ```
-   - **nowhere (`ORIGIN_REF`=no, `LOCAL_REF`=no):** create it from the latest default branch **without disturbing the main tree** (use `git branch`, which never touches the working tree), then push it; this sets both `LOCAL_REF`=yes and `ORIGIN_REF`=yes. Note in the final summary that the epic branch was created.
-     ```
-     git fetch origin <DEFAULT_BRANCH>
-     git branch <EPIC_BRANCH> origin/<DEFAULT_BRANCH>
-     git push -u origin <EPIC_BRANCH>
-     git fetch origin <EPIC_BRANCH>
-     ```
+   After step 9 **all remaining `git`/`bd`/`claude` work runs from inside `<WORKTREE_PATH>`** — the driver never `cd`s the main tree or switches its branch.
 
-7. **Create the worktree checked out ON the epic branch** (not a new feature branch — every bead commits directly onto the epic branch), always anchored to the freshly fetched `origin/<EPIC_BRANCH>`. Choose strictly by the **recorded `LOCAL_REF`** (do not re-derive it):
-   - **`LOCAL_REF`=no** (the branch exists only on origin, or was just pushed there): create the local tracking branch as part of the worktree add:
-     ```
-     git worktree add <WORKTREE_PATH> -b <EPIC_BRANCH> origin/<EPIC_BRANCH>
-     ```
-   - **`LOCAL_REF`=yes** (a local branch already existed, or you just created it with `git branch`): check it out into the worktree, then fast-forward it to the fetched origin tip so the run never starts from a stale local ref:
-     ```
-     git worktree add <WORKTREE_PATH> <EPIC_BRANCH>
-     git -C <WORKTREE_PATH> merge --ff-only origin/<EPIC_BRANCH>
-     ```
-     If `merge --ff-only` fails (the local branch has diverged from origin), stop and ask — never force or rebase silently. (`merge --ff-only origin/<EPIC_BRANCH>` is used instead of `pull` so it needs no tracking config and deterministically lands on the up-to-date origin tip — picking the wrong command here is the difference between a clean start and either a hard `-b ... already exists` failure or committing the whole epic onto a stale tip that the final push then rejects non-fast-forward.)
-
-   After this step there is a worktree at `<WORKTREE_PATH>` on a clean `<EPIC_BRANCH>` sitting at the `origin/<EPIC_BRANCH>` tip. **All remaining `git`/`bd`/`claude` work runs from inside `<WORKTREE_PATH>`** — the driver never `cd`s the main tree or switches its branch.
-
-8. **Seed git-ignored local env files into the worktree — REQUIRED before any worker runs `build-and-test`.** A fresh worktree checks out only _tracked_ files, so git-ignored local config the build needs — `.env.local`, `.env`, and the rest of the `.env*` family — is absent, and the first worker's `build-and-test` would otherwise run against a worktree with no environment. Do this **once, up front, before the loop**, and unconditionally; do **NOT** skip or defer it on the assumption that `build-and-test` will synthesize a default environment. Run this from the main checkout (`<MAIN_ROOT>`); it reads from the main tree but never writes to it:
-
-   ```
-   git -C <MAIN_ROOT> ls-files --others --ignored --exclude-standard --directory \
-     | grep -E '(^|/)\.env(\.[^/]*)?$' \
-     | while IFS= read -r f; do
-         mkdir -p "<WORKTREE_PATH>/$(dirname "$f")"
-         cp -p "<MAIN_ROOT>/$f" "<WORKTREE_PATH>/$f"
-       done
-   ```
-
-   - `--directory` collapses fully-ignored directories (`node_modules/`, `dist/`, `.beads/`, `*.db`) to a single entry so the `grep` skips them — only `.env*` files are copied, never dependencies or build output. `cp -p` preserves the source permissions (env files are often `600`).
-   - Always **run** the detection command — never skip running it because you expect the output to be empty; only treat it as a no-op when its _actual_ output is empty. Never pre-judge that no `.env*` files exist because the worktree _looks_ build-ready (`.env.example` is tracked and proves nothing).
-   - This `.env*` seed is the up-front, non-negotiable part. _Separately_, if a worker's `build-and-test` later fails because some **other** git-ignored config is missing (e.g. `.dev.vars`, a local service-account JSON), copy that one file the same way — but that reactive copy never replaces the up-front `.env*` seed above. Do not bulk-copy all ignored files.
-   - **Do NOT seed `.beads/`, `*.db`, or `.dolt/` into the worktree** the way `.env*` is seeded. `bd` already resolves to the shared main-clone database (see step 9); copying beads state in would create a divergent or empty view — the exact failure to avoid. The `.env*` seed is the only thing copied into the worktree.
-
-9. **Verify Beads health and connectivity inside the worktree.** The driver loop and every worker read and write bead state from within `<WORKTREE_PATH>`. This works because **`bd` is git-worktree-aware**: from inside a worktree it resolves `.beads` to the MAIN repo root via the git common dir and connects to the shared Dolt server, so the worktree and the main tree are **one** beads view (`.beads/dolt`, `issues.jsonl`, and `*.db` are git-ignored and deliberately not seeded into the worktree — see step 8).
-
-   The authoritative health check is **`bd show <EPIC_BEAD_ID>`, not `bd where`**:
-
-   ```
-   (cd <WORKTREE_PATH> && bd show <EPIC_BEAD_ID> --json)
-   ```
-
-   - It must resolve the **same epic** AND prove the Dolt server is reachable. `bd where` only prints resolved config and **succeeds even when the server is down**, so it is not a connectivity check — rely on `bd show`.
-   - **If `bd show` fails:** the most likely cause is the Dolt server being down — start it (`bd dolt start`; check `bd dolt status`) and retry. Do **not** reach for `bd bootstrap --yes` to "fix" a down server: it errors on shared-server reconcile, and in a healthy worktree it is only a no-op (it detects the existing main-clone DB). If `bd` is missing entirely, stop and report — the run cannot proceed without it.
-   - **If `bd show` resolves a different or empty epic**, stop and report rather than running the loop against the wrong beads view.
-   - **If `<IMPLEMENTOR>`=`opencode`:** confirm `<WORKTREE_PATH>/.opencode/agents/implementor.md` exists (it is committed, so it travels with `<EPIC_BRANCH>`). If missing, stop: run `agent-workflow-beads update --with-opencode <repo>`, commit `.opencode/agents/` onto the epic branch, and retry.
-
-10. **Show the plan, then run unattended.** Print the resolved epic, `<WORKTREE_PATH>`, `<EPIC_BRANCH>`, `<DEFAULT_BRANCH>` (the PR base), and the initial ready set (`(cd <WORKTREE_PATH> && bd ready --parent <EPIC_BEAD_ID> --json)`). State that the run will now proceed bead-by-bead without further confirmation, that the main working tree (`<MAIN_BRANCH>`) will not be touched, and that the worktree will be left in place at the end. Do not ask for per-bead confirmation after this point.
+10. **Show the plan, then run unattended.** Print the resolved epic, `<WORKTREE_PATH>`, `<EPIC_BRANCH>`, `<DEFAULT_BRANCH>` (the PR base), and the initial ready set (`(cd <WORKTREE_PATH> && bd ready --parent <EPIC_BEAD_ID> --json --brief)`). State that the run will now proceed bead-by-bead without further confirmation, that the main working tree (`<MAIN_BRANCH>`) will not be touched, and that the worktree will be left in place at the end. Do not ask for per-bead confirmation after this point.
 
 11. **The loop.** Keep three sets — `done`, `blocked`, `attempted` — and a hard iteration cap (≈ the epic's descendant count, backstop 50). **Run every `bd` and `git` command from inside `<WORKTREE_PATH>`.** Each iteration:
-    1. `(cd <WORKTREE_PATH> && bd ready --parent <EPIC_BEAD_ID> --json)`; drop any bead already in `done` or `blocked`.
+    1. `(cd <WORKTREE_PATH> && bd ready --parent <EPIC_BEAD_ID> --json --brief)`; drop any bead already in `done` or `blocked`.
     2. If the remaining set is empty, **break** — the epic has no more ready work.
     3. Pick the next bead: lowest priority number first (highest priority), ties broken by id for determinism. Record it as `<BEAD_ID>` and add it to `attempted`.
     4. Record the epic branch tip before the worker: `TIP_BEFORE=$(git -C <WORKTREE_PATH> rev-parse HEAD)`.
@@ -137,12 +78,7 @@ Optional. Pass `opencode` (or `--implementor opencode` / `implementor=opencode`,
        Use plain `clean -fd`, **never** `-x` — the seeded git-ignored `.env*` files (step 8) and `node_modules/` must survive.
     8. **Infinite-loop guard:** a bead in `attempted` must end each iteration in `done` or `blocked`. If it is neither, force-block it (step 11.6 covers this). Because failed/blocked beads stay out of `bd ready`, their dependents never become ready — that is exactly the skip-and-continue behavior. Never re-run a bead that is already in `attempted` and still not `done`.
 
-12. **Finalize** from inside `<WORKTREE_PATH>`. When the loop breaks:
-    - **If nothing was delivered, skip the PR.** If `done` is empty — or `git -C <WORKTREE_PATH> rev-list --count origin/<DEFAULT_BRANCH>..<EPIC_BRANCH>` is `0` — there are no commits to base a PR on, and `gh pr create` would hard-fail with "No commits between …". Skip the push and PR; report the blocked/skipped list as the outcome instead, then jump to the summary.
-    - `git -C <WORKTREE_PATH> push -u origin <EPIC_BRANCH>`
-    - follow `finishing-a-development-branch` to open **one** PR: `gh pr create --base <DEFAULT_BRANCH> --title "<conventional-commit title>" --body "..."` (run from within the worktree). The body must include an `Epic: <EPIC_BEAD_ID>` line, a list of delivered beads (with ids), and a list of blocked/skipped beads with one-line reasons. If `gh` is unavailable, report the branch name and intended `--base <DEFAULT_BRANCH>` for manual PR creation instead of failing.
-    - **Leave the worktree in place.** Do not remove it — the user returns to it for the epic PR's review comments, screenshots, and CI fixes. Removal is a separate manual step via the `cleanup-worktree` skill.
-    - report a concise summary: **delivered** (closed + commit), **blocked/skipped** (with reasons), `<EPIC_BRANCH>`, `<DEFAULT_BRANCH>` (PR base), the PR URL, `<WORKTREE_PATH>` (with the exact `cd <WORKTREE_PATH>` to enter it), and a reminder that the main working tree (`<MAIN_BRANCH>`) was never touched. Note if the epic branch was created by this run. Because every `bd` write happened in the worktree and is committed on `<EPIC_BRANCH>`, the **main checkout's** `bd ready`/`bd show` will keep showing these beads as open/in_progress until the epic PR merges — say so, so the user doesn't think nothing happened. Point to `cleanup-worktree` for teardown.
+12. **Finalize** from inside `<WORKTREE_PATH>` when the loop breaks. **REQUIRED: read `references/finalize.md` and follow it.** In short: skip the push and PR if nothing was delivered; otherwise push `<EPIC_BRANCH>` once and open **one** PR to `<DEFAULT_BRANCH>` via `finishing-a-development-branch` (body lists `Epic: <EPIC_BEAD_ID>`, delivered beads, and blocked/skipped beads with reasons); **leave the worktree in place**; report the summary, including that the main checkout's `bd` view shows these beads as open until the PR merges.
 
 ## Per-task headless run
 
@@ -159,32 +95,13 @@ Run **from inside `<WORKTREE_PATH>`**, on `<EPIC_BRANCH>`, **strictly one at a t
 
 `<TASK_PROMPT>` instructs the worker to run the full executor cycle for **exactly** `<BEAD_ID>` and nothing else:
 
-> You are an executor in `<WORKTREE_PATH>`, a git worktree already checked out on branch `<EPIC_BRANCH>`. Deliver bead `<BEAD_ID>` and only that bead. Run, in order: `beads-claim` (claim `<BEAD_ID>` with `bd update <BEAD_ID> --status in_progress`), `writing-plans`, implementation, `systematic-debugging` if blocked, the repo-local `build-and-test` skill (required), `verification-before-completion`, `requesting-code-review` (dispatch the code-reviewer subagent — required), then `beads-close`. **Commit your work directly on the current branch `<EPIC_BRANCH>` from inside this worktree.** Do NOT `cd` out of the worktree, do NOT create or switch branches, do NOT open a PR, do NOT push, do NOT touch any other bead. If you hit a blocker you cannot resolve, do not force it: run `bd update <BEAD_ID> --status blocked` with a short note explaining why, then stop. End your final message with one line: `RESULT: closed|blocked — <short summary>`.
+> You are an executor in `<WORKTREE_PATH>`, a git worktree already checked out on branch `<EPIC_BRANCH>`. Deliver bead `<BEAD_ID>` and only that bead. Run, in order: `beads-claim` (claim `<BEAD_ID>` with `bd update <BEAD_ID> --claim`), `writing-plans`, implementation following `test-driven-development`, `systematic-debugging` if blocked, the repo-local `build-and-test` skill (required), `verification-before-completion`, `requesting-code-review` (dispatch the code-reviewer subagent — required), then `beads-close`. **Commit your work directly on the current branch `<EPIC_BRANCH>` from inside this worktree.** Do NOT `cd` out of the worktree, do NOT create or switch branches, do NOT open a PR, do NOT push, do NOT touch any other bead. If you hit a blocker you cannot resolve, do not force it: run `bd update <BEAD_ID> --status blocked` with a short note explaining why, then stop. End your final message with one line: `RESULT: closed|blocked — <short summary>`.
 
 When `<IMPLEMENTOR>`=`opencode`, append to `<TASK_PROMPT>`:
 
 > Implementor: opencode (model `<MODEL>`, or OpenCode's default if empty) — run the implementation step, and every build/test or Critical/Important review fix, via the `implement-with-opencode` skill. Never edit source files yourself.
 
-Notes on the invocation:
-
-- **The worker runs in the worktree, not the main tree.** Because `claude -p` is spawned with the worktree as its cwd, it loads the worktree's `.claude/skills/` and operates on the epic-branch checkout. The main checkout is never the worker's working directory.
-- **Model and effort are pinned**, not inherited: `--model claude-opus-5-5 --effort high`. Each worker delivers a full bead (plan + implement + review), so it runs on the strongest model at high reasoning effort. `--effort` accepts `low|medium|high|xhigh|max`; raise to `xhigh` or `max` for harder epics, lower it only to economize on simple ones.
-- **Why headless and not a subagent:** a subagent cannot dispatch a further subagent, so it could not run `requesting-code-review`'s `code-reviewer` subagent. A headless `claude -p` run is a top-level session, so the full cycle — including code review — works unchanged.
-- **Outcome is read from `bd show` (run in the worktree), not the `RESULT:` line.** The `RESULT:` line and the worker's `.result` text are for the human summary only; the bead's actual status is authoritative.
-- **Per-task timeout** (`<WORKER_TIMEOUT>` = `3600`, ~1h; `5400` when `<IMPLEMENTOR>`=`opencode`, to fit nested implementor rounds) prevents one stuck bead from hanging the whole run. A timeout counts as a failure → force-block and skip.
-- **Keep the driver thin:** capture the JSON to a temp file; do not dump the worker's full transcript into the driver context. Read back only what you need for the summary.
-
-### Permissions posture (unattended)
-
-An unattended worker runs arbitrary, repo-specific build/test commands, so a fixed `--allowedTools` allowlist cannot cover them. The practical default for a genuinely unattended run is `--dangerously-skip-permissions`. State this to the user before the first run — it auto-approves every tool call in the worker. The cautious alternative is `--permission-mode acceptEdits` plus a downstream `.claude/settings.json` Bash allowlist that covers the repo's build/test/git/bd commands; offer it if the user prefers a tighter posture.
-
-### Cost note
-
-Each `claude -p` worker is a separate session with its own token usage. On subscription plans, headless `claude -p` draws from the separate Agent SDK credit pool. A large epic spawns one worker per bead — surface this so the user opts in knowingly.
-
-### Implementor note (OpenCode)
-
-In OpenCode mode the worker stays a headless `claude -p` session — it plans, runs `build-and-test`, verification, and code review, and closes the bead — but each implementation round is a nested `opencode run --agent implementor` launched by `implement-with-opencode` from inside `<WORKTREE_PATH>`. The implementor's agent file denies branch/push/PR/`bd` writes, so the epic-branch and Beads invariants above still hold. Outcome is still read from `bd show`; a bead whose implementor rounds are exhausted is blocked by its worker and skipped like any other failure.
+Before the first run, **read `references/headless-worker.md`** (alongside this `SKILL.md`): it covers why the worker is headless rather than a subagent, the pinned model and effort, the per-task timeout (`<WORKER_TIMEOUT>` = `3600`; `5400` with `<IMPLEMENTOR>`=`opencode`), the unattended permissions posture and cost note you must state to the user, and how OpenCode mode nests inside the worker. Outcome is always read from `bd show`, never from the worker's `RESULT:` line; capture the worker JSON to a temp file and keep its transcript out of the driver context.
 
 ## Hard Rules
 
@@ -205,7 +122,7 @@ ONE epic branch, ONE worktree, ONE PR. Never create a per-task feature branch, n
 - **Outcome from Beads, not self-report.** Always read `bd show <BEAD_ID> --json` (from the worktree) to decide done vs blocked.
 - **Sequential only.** One headless worker at a time — they share the worktree's working tree.
 - **Never operate from a dirty epic-branch worktree.** After any blocked bead, reset the worktree clean (step 11.7) so the next worker starts from a pristine epic-branch tip — otherwise one failed worker's stray edits get committed under the next bead's id. Never rebase or force-push the epic or default branch during the run. (To refresh the epic branch against the default branch out of band — e.g. before the single PR merges — use the user-invoked `rebase-and-push` skill.)
-- **Once the worktree exists, run all loop and worker `bd`/`git`/`claude` commands from inside `<WORKTREE_PATH>`** so the workers operate on the worktree's checkout, the correct branch tip, and the worktree's `.claude/skills`. (The pre-worktree resolution/preflight/branch-setup steps necessarily run against the main repo; step 8 only reads from it.) The beads view is identical from either tree — `bd` resolves to the same main-clone DB via the git common dir — so running `bd` from the worktree is for uniformity, not because the main tree would see different beads.
+- **Once the worktree exists, run all loop and worker `bd`/`git`/`claude` commands from inside `<WORKTREE_PATH>`** so the workers operate on the worktree's checkout, branch tip, and `.claude/skills`. (`bd` resolves to the same main-clone DB from either tree; running it from the worktree is for uniformity.)
 - **Never remove the worktree automatically** — it stays in place after success or blocker so the user can address the epic PR's comments, capture screenshots, or fix CI. Removal is a deliberate user action via the `cleanup-worktree` skill.
 - If the loop would exceed the iteration cap, stop and report rather than spinning.
 - If `gh` is unavailable, push the epic branch and report the branch name plus the intended `--base <DEFAULT_BRANCH>` for manual PR creation rather than failing the whole flow.
@@ -218,7 +135,7 @@ ONE epic branch, ONE worktree, ONE PR. Never create a per-task feature branch, n
 
 **Invokes:**
 
-- a fresh headless `claude -p` **executor cycle per bead** (`beads-claim` → `writing-plans` → impl → `build-and-test` → `verification-before-completion` → `requesting-code-review` → `beads-close`, committing on the epic branch inside the worktree)
+- a fresh headless `claude -p` **executor cycle per bead** (`beads-claim` → `writing-plans` → impl (`test-driven-development`) → `build-and-test` → `verification-before-completion` → `requesting-code-review` → `beads-close`, committing on the epic branch inside the worktree)
 - **`implement-with-opencode`** — inside each worker, for the implementation step, only when `<IMPLEMENTOR>`=`opencode`
 - **`finishing-a-development-branch`** — once, at the end, to push and open the single epic → default-branch PR
 
@@ -226,7 +143,4 @@ ONE epic branch, ONE worktree, ONE PR. Never create a per-task feature branch, n
 
 - **`cleanup-worktree`** — the teardown bookend. This skill creates the worktree and leaves it in place; `cleanup-worktree` removes it once the epic PR has landed (or been abandoned).
 
-**Relation to the other epic/worktree skills:**
-
-- Use **`executor-epic-sequential`** (non-worktree) when it is fine to switch the main checkout onto the epic branch and you want the simplest path. Use **this** skill when the main tree has in-flight work that must stay untouched, or when you want the epic to run in an isolated directory.
-- Use **`executor-epic-task-worktree`** when you want each bead reviewed as its **own** PR into the epic branch (one worktree per bead, parallel-safe). Use **this** skill when you want the whole epic delivered unattended as **one** branch and **one** PR in a single worktree. All three share the `epic/<epic-bead-id>` branch convention.
+**Relation to the other epic/worktree skills:** use `executor-epic-sequential` when switching the main checkout onto the epic branch is fine; use `executor-epic-task-worktree` when each bead should be its **own** PR into the epic branch. All three share the `epic/<epic-bead-id>` branch convention.

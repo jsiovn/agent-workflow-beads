@@ -34,6 +34,26 @@ seam instead of creating a parallel one.
       re-plan. Copy the gate wording from an existing same-mode skill.
 - [ ] **Keep scope narrow by default.** Extended audits / multi-step analysis
       belong behind an explicit opt-in, not in the default path.
+- [ ] **Description says *when*, never *how*.** Do not summarize the skill's
+      steps in the frontmatter `description`: an agent that reads a workflow
+      summary follows the summary instead of loading the skill. Descriptions
+      are also loaded into every session's skill listing, so keep them short.
+- [ ] **Size and layout.** Keep `SKILL.md` under 20,000 bytes (aim for under
+      18,000): Claude Code re-attaches a skill cut at 20,000 characters after
+      compaction, so anything past that is lost mid-session. Move rarely-needed
+      detail into `references/<topic>.md` and tell the agent, at the step that
+      needs it, to read that file in full. No dev or test files inside a shipped
+      skill dir (`CREATION-LOG.md`, `test-*.md`); keep pressure-test prompts
+      out of `skills/`. No `@path` links (they force-load the file).
+- [ ] **No positional dollar-digit tokens in a SKILL.md.** Claude Code replaces
+      them with the skill's arguments, so an `awk` field reference or a shell
+      positional silently breaks. Use `cut`, an anchored `grep`, or plumbing
+      flags instead. `npm run check:skills` enforces this and the size and
+      layout rules above.
+- [ ] **Parse machine-readable output.** When a step parses command output,
+      use the plumbing or JSON form (`git merge-base`, `git status --porcelain`,
+      `git for-each-ref`, `gh … --json`, `bd … --json`). Human-facing output may
+      be condensed by an output-filtering hook such as rtk.
 - [ ] **State the verification step.** If the skill produces work, it must say
       how completion is proven — defer to `verification-before-completion`
       rather than restating it.
@@ -61,6 +81,7 @@ A skill that has never been tested against a subagent under pressure is a draft.
 
 ## 4. Propagation check
 
+- [ ] **`npm run check:skills` passes.**
 - [ ] **Auto-pickup.** A new shared skill under `skills/<name>/` is picked up
       automatically — `lib/scaffold.js` copies every `skills/` dir into
       `.claude/skills/`. No copy line to add.

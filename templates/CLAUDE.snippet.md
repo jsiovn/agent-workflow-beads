@@ -8,7 +8,7 @@ Do **not** include `@claude review` in replies to human reviewer inline thread c
 
 ## Issue tracking
 
-This repo uses `bd` for issue tracking. Use `bd`, not markdown TODO files or alternate trackers.
+This repo uses `bd` for issue tracking. Use `bd`, not markdown TODO files, TodoWrite/TaskCreate lists, or alternate trackers.
 
 Live `.beads` state is local-only and should not be committed. Use one top-level executor session at a time per branch.
 
@@ -23,11 +23,13 @@ Keep repo exploration local. Verify the actual environment before running build,
 Useful commands:
 
 ```bash
-bd ready --json
+bd ready --json --brief      # ids/titles only; bd show for the full bead
 bd show <id> --json
-bd update <id> --status=in_progress
+bd update <id> --claim       # atomic claim: assignee + in_progress
 bd close <id> --reason="Completed"
 bd dep add <child-id> <parent-id>
 ```
+
+These commands need `bd` 1.3.0 or newer. If `bd` rejects `--brief` or `--claim`, rerun without `--brief` (or with `--status in_progress` instead of `--claim`) and ask the user to upgrade `bd`.
 
 <!-- END TEMPLATE BD WORKFLOW -->

@@ -92,5 +92,7 @@ hard scenario.
 ## Done
 
 A skill passes when a fresh subagent, under real competing pressure, follows it
-and can say why. Record nothing special — just commit the skill. An untested
+and can say why. Before committing, also run `npm run check:skills` (size,
+layout, `@`-link, and `$<digit>` checks). Record nothing special — just commit
+the skill. An untested
 skill stays a draft per `docs/AUTHORING-SKILLS.md`.

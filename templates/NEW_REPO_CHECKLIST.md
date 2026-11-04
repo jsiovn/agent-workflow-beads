@@ -7,8 +7,8 @@
    - `agent-workflow-beads bootstrap [--with-opencode] /path/to/repo <prefix>` (same command on macOS, Linux, and Windows)
    - Claude Code is the primary AI and `.claude/` is always installed; pass `--with-opencode` to also install the OpenCode implementor agent (`.opencode/agents/implementor.md`) so executors can delegate implementation with the `opencode` argument.
 3. Verify:
-   - `bd version`
-   - `bd ready --json`
+   - `bd version` (1.3.0 or newer)
+   - `bd ready --json --brief`
    - `bd where`
 4. Confirm the standalone bootstrap beads exist:
    - `Specialize build-and-test for this repo`

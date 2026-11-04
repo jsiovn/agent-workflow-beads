@@ -29,8 +29,9 @@ Do **not** use this for:
    - any `docs/conventions*.md`, `docs/architecture*.md`, or similar conventions files the user names
      Extract the concrete rules: folder layout, naming conventions, file-placement rules, required commands, forbidden patterns.
 3. List the audit set:
-   - `bd ready --json` for ready beads
-   - `bd list --status blocked --json` for blocked beads
+   - `bd ready --json --brief` for ready beads
+   - `bd list --status blocked --json --brief` for blocked beads
+     (`--brief` lists ids and titles only; step 4 fetches each bead in full)
      Deduplicate. If the result is empty, report that and stop.
 4. For each bead, fetch the full description and notes (`bd show <id> --json`) and compare against the rules collected in step 2. Look for:
    - `Files:` paths that no longer match the new folder structure

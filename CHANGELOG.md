@@ -4,6 +4,92 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-11-04
+
+Upstream sync release: the vendored execution-quality skills catch up with
+obra/superpowers v7.0.2, the Beads usage catches up with bd v1.3.3, and the CLI
+learns to detect the optional rtk output condenser. Most changes cut the tokens
+a downstream session spends.
+
+### Added
+
+- New shared skill `test-driven-development` (vendored from superpowers v7.0.2,
+  with `writing-good-tests.md`). Every executor's implementation step, the
+  epic-sequential worker prompts, `writing-plans`, `systematic-debugging`, and the
+  OpenCode implementor agent now follow it. The project's whole suite defines green.
+- `brainstorming` builder check: for project-sized designs, one fresh subagent reads
+  the settled design as a stand-in for a fresh executor and reports only the questions
+  it would still need answered (`builder-check-prompt.md`), in a single round.
+- `agent-workflow-beads check` prints the installed `bd` version and reports the
+  optional [rtk](https://github.com/rtk-ai/rtk) tool: whether it is installed and
+  whether its Claude Code hook is registered in the user's global settings.
+  `bootstrap` / `update` mention rtk only when it is installed but its hook is not
+  registered. The template never installs or writes an rtk hook.
+- All commands warn (without failing) when `bd` is older than 1.3.0.
+- `npm run check:skills` (template-repo only, `scripts/check-skills.js`): fails when
+  a `SKILL.md` reaches 20,000 bytes, a skill dir ships dev/test artifacts, a
+  `SKILL.md` uses an `@path` force-load link or a positional dollar-digit token, or
+  names a `references/` file that does not exist.
+- The managed `.gitignore` block now lists `.superpowers/` (where the brainstorming
+  visual companion keeps its mockups).
+- Docs: "Optional: rtk" in `docs/INSTALL.md`, "Upgrading `bd` to 1.3.x" in
+  `docs/TROUBLESHOOTING.md`, and size/layout rules in `docs/AUTHORING-SKILLS.md`.
+
+### Changed
+
+- Skills list beads with `bd ready --json --brief` / `bd list … --json --brief`
+  (ids, titles, types, priorities; upstream measured ~93% smaller output) and read a
+  chosen bead with `bd show`. Claims use the atomic `bd update <id> --claim`. The
+  managed `CLAUDE.md` / `AGENTS.md` blocks and `.beads/PRIME.md` show the new
+  commands, a fallback for older `bd`, and a "no TodoWrite/TaskCreate lists" rule.
+- `writing-plans` (from superpowers v6.4.2): plans record decisions — exact
+  signatures, test names and assertions, values from the bead — rather than full code
+  bodies. New header sections `Bead:`, `## Global Constraints`, and `## Review Focus`.
+  Tasks carry `**Interfaces:**` blocks. The plan-reviewer subagent loop is replaced by
+  an inline self-review checklist, which saves one subagent dispatch per bead.
+- `brainstorming` (selective merge of superpowers v7): reads the project before the
+  first message, asks only questions whose answers change what gets built, asks
+  *why* first with no options, states proposals instead of asking, plays back in
+  chunks, and sizes the work. The Beads planner handoff and planner gate are unchanged.
+- The brainstorming visual companion server is upstream's hardened `server.cjs`
+  (per-session key on the URL, 4-hour idle timeout, same-port restart). The
+  vendored copy pins its version string and never loads the remote brand image.
+- `executor-epic-sequential-worktree` is split so its `SKILL.md` stays under the
+  20,000-byte limit (Claude Code re-attaches skills cut at that size after
+  compaction). Worktree setup, the headless-worker notes, and finalize move to
+  `references/` files that the skill reads at the step that needs them.
+- `requesting-code-review` / `code-reviewer`: BASE comes from `git merge-base`; the
+  reviewer judges behaviour the plan is silent on by reasonable-user expectations,
+  lists what it "declined to judge", and never dispatches subagents.
+- Steps that parse command output now use git plumbing: `finishing-a-development-branch`
+  (`status --porcelain`, `rev-list --count`), `executor-epic-sequential` (tip
+  comparison), and `prune-local-branches` (a `for-each-ref` conditional format, with
+  no pipe stage an output-condensing hook could rewrite).
+- `verification-before-completion` and `systematic-debugging` drop upstream's
+  persuasion sections (superpowers v6.2.0 compression).
+- Install docs point at `gastownhall/beads` and list `npm install -g @beads/bd`.
+
+### Fixed
+
+- `requesting-code-review` and `prune-local-branches` used `awk` positional field
+  references inside a skill body, which Claude Code replaces with the skill's
+  arguments. They now use `git merge-base` and a `for-each-ref` format.
+- `systematic-debugging` said "Ultrathink", a keyword that forces extended thinking
+  in every session that loads the skill. It now says "Ultra-think".
+- `find-polluter.sh` (from upstream) now matches patterns written with or without a
+  leading `./` and `**/` patterns at zero depth. It is invoked as `bash ./find-polluter.sh`
+  because npm packing drops the executable bit.
+- `docs/CROSS-MACHINE-SYNC.md`: `db dolt start` typo.
+
+### Removed
+
+- Dev artifacts that shipped into every downstream: `systematic-debugging`'s
+  `CREATION-LOG.md`, `test-pressure-1..3.md`, and `test-academic.md`.
+- `writing-plans/plan-document-reviewer-prompt.md` (replaced by inline self-review)
+  and `brainstorming/spec-document-reviewer-prompt.md` (unreferenced; replaced by the
+  builder check). Removed files disappear downstream on the next `update` because
+  skill dirs are replaced wholesale.
+
 ## [1.2.0] - 2026-10-29
 
 OpenCode replaces Codex as the optional second AI — as a headless implementor

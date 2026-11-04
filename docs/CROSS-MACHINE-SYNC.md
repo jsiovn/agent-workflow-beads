@@ -127,7 +127,11 @@ Caveats — read before relying on it:
   terminal). Treat the hook as a convenience, not a guarantee — keep a manual
   `bd dolt push` in your habits before switching machines.
 - These commands assume the Dolt server is running. If `bd dolt` reports the server
-  is down, start it first (`db dolt start` or `bd`'s server command for your setup).
+  is down, start it first (`bd dolt start` or `bd`'s server command for your setup).
+- `bd setup claude` (run by `bootstrap`) registers its own `SessionStart` hook
+  (`bd prime --hook-json`) in `.claude/settings.json`; since bd 1.3 it no longer adds a
+  `PreCompact` one, because `SessionStart` also fires after compaction. Your sync hooks
+  in `settings.local.json` run alongside it.
 - Do **not** push on the `Stop` event — it fires after every assistant turn and
   would hammer the remote. `SessionEnd` (once per session) is the right granularity.
 
