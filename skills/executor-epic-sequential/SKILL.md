@@ -1,6 +1,6 @@
 ---
 name: executor-epic-sequential
-description: 'Run every ready child bead of one epic end-to-end, sequentially, on a single epic branch (epic/<epic-bead-id>). Each bead executes in a fresh headless `claude -p` session so context never carries between tasks; a failed bead is marked blocked and skipped (along with its dependents) and the run continues; finishes with one PR from the epic branch to the default branch. Use when the user wants to deliver a whole epic unattended as one branch and one PR instead of running one bead at a time. Pass `opencode` to delegate implementation to a headless OpenCode implementor.'
+description: 'Run every ready child bead of one epic end-to-end, sequentially, on a single epic branch (epic/<epic-bead-id>). Each bead executes in a fresh headless `claude -p` session so context never carries between tasks; a failed bead is marked blocked and skipped (along with its dependents) and the run continues; finishes with one PR from the epic branch to the default branch. Use when the user wants to deliver a whole epic unattended as one branch and one PR instead of running one bead at a time. Pass `opencode` to delegate implementation to a headless OpenCode implementor. Pass `herdr` (or `herdr=<agent>`) to run each bead in a named interactive Claude agent in Herdr, cleared with `/clear` between beads, instead of `claude -p`.'
 ---
 
 # Executor Epic Sequential
@@ -11,9 +11,9 @@ This is the "run the whole epic" entry point. The four `executor-*-task` skills 
 
 ## Iron Law
 
-**ONE epic branch. EVERY bead runs in its own fresh headless `claude -p` session. The driver NEVER implements bead work in its own context.**
+**ONE epic branch. EVERY bead runs in a fresh session (`claude -p`, or `/clear` on the Herdr agent). The driver NEVER implements bead work in its own context.**
 
-The entire point of this skill is to keep the driver session thin: only short per-task summaries and `git`/`bd` output land in the driver's context, while the heavy implement/test/review transcript for each bead lives in a disposable headless session that is thrown away when the bead finishes. The model cannot `/clear` itself mid-run, so the _only_ way to get a clean slate per task is to spawn a fresh process per task. Doing a bead "inline" — even a one-line one — re-pollutes the driver context and defeats the skill.
+The entire point of this skill is to keep the driver session thin: only short per-task summaries and `git`/`bd` output land in the driver's context, while the heavy implement/test/review transcript for each bead lives in a disposable headless session that is thrown away when the bead finishes. The model cannot `/clear` itself mid-run, so the only ways to get a clean slate per task are to spawn a fresh process per task or, with the Herdr runner, to `/clear` a separate worker agent. Doing a bead "inline" — even a one-line one — re-pollutes the driver context and defeats the skill.
 
 ## Requires fresh-session-safe beads
 
@@ -22,6 +22,10 @@ Each headless worker starts with **zero memory** of the planner chat or of the b
 ## Implementor argument
 
 Optional. Pass `opencode` (or `--implementor opencode` / `implementor=opencode`, plus an optional `model=<provider/model[#variant]>`) to have each worker delegate its **implementation step** to a headless OpenCode implementor via the `implement-with-opencode` skill. Record `<IMPLEMENTOR>` (`claude` by default, `opencode` when requested) and `<MODEL>`. The per-bead worker is still a headless `claude -p` session that runs every other step — claim, plan, build-and-test, verification, code review, close. Without the argument, each worker implements inline.
+
+## Runner argument
+
+Optional. Pass `herdr` (or `herdr=<agent>`, `--runner herdr [--agent <name>]`, `runner=herdr`) to run each bead in a named interactive Claude agent in Herdr instead of a headless `claude -p` process. Record `<RUNNER>` (`headless` by default, `herdr` when requested) and `<HERDR_AGENT>` (default `implementer`). The driver must itself be running in a Herdr pane, and `<HERDR_AGENT>` must be a Claude agent started in the repo root. Every Herdr mechanic (preflight, `/clear`, prompt, wait, blocked dialogs) is in the `run-bead-in-herdr` skill; this skill only branches on `<RUNNER>`. It combines with `opencode`: the Herdr agent becomes the worker and runs `implement-with-opencode` itself. Without the argument, each bead runs in `claude -p`.
 
 ## Steps
 
@@ -35,7 +39,7 @@ Optional. Pass `opencode` (or `--implementor opencode` / `implementor=opencode`,
 
 3. **Preflight (fail fast, stop on any failure):**
    - **The working tree must be clean.** Run `git status --porcelain`; if anything is dirty, stop and ask the user to commit or stash first. This skill runs unattended across many tasks and switches to the epic branch — it must not auto-`stash` or auto-WIP-commit and risk losing or mixing in unrelated work. (This intentionally diverges from `executor-task`, which auto-WIP-commits a single switch.)
-   - **The headless runner must exist.** Run `command -v claude`. If it is missing, stop and tell the user this skill needs the `claude` CLI on `PATH` to spawn per-task sessions.
+   - **The headless runner must exist** (`<RUNNER>`=`headless` only). Run `command -v claude`. If it is missing, stop and tell the user this skill needs the `claude` CLI on `PATH` to spawn per-task sessions. With `<RUNNER>`=`herdr`, skip this check; the Herdr preflight runs at the end of step 4.
    - **If `<IMPLEMENTOR>`=`opencode`, the implementor must exist too.** Run `command -v opencode`; if it is missing, stop (see `implement-with-opencode` preflight). The `.opencode/agents/implementor.md` check runs on `<EPIC_BRANCH>` at the end of step 4.
    - Record the starting branch (`git rev-parse --abbrev-ref HEAD`) as `<PREV_BRANCH>` so you can report where the user came from.
 
@@ -53,6 +57,7 @@ Optional. Pass `opencode` (or `--implementor opencode` / `implementor=opencode`,
      Note in the final summary that the epic branch was created.
    - After this step the driver session is on `<EPIC_BRANCH>` with a clean tree. Do **not** create any other branch for the rest of the run.
    - **If `<IMPLEMENTOR>`=`opencode`:** confirm `.opencode/agents/implementor.md` exists on `<EPIC_BRANCH>`. If missing, stop: run `agent-workflow-beads update --with-opencode <repo>`, commit `.opencode/agents/` onto the epic branch, and retry.
+   - **If `<RUNNER>`=`herdr`:** run the `run-bead-in-herdr` preflight in main-checkout mode with `<CHECKOUT>` = the repo root (now on `<EPIC_BRANCH>`). It resolves `<HERDR_AGENT>`'s pane and checks that the agent is an idle Claude agent whose cwd is the repo root. Any failure stops the run; never fall back to `claude -p`.
 
 5. **Show the plan, then run unattended.** Print the resolved epic, `<EPIC_BRANCH>`, and the initial ready set (`bd ready --parent <EPIC_BEAD_ID> --json`). State that the run will now proceed bead-by-bead without further confirmation. Do not ask for per-bead confirmation after this point.
 
@@ -60,11 +65,11 @@ Optional. Pass `opencode` (or `--implementor opencode` / `implementor=opencode`,
    1. `bd ready --parent <EPIC_BEAD_ID> --json`; drop any bead already in `done` or `blocked`.
    2. If the remaining set is empty, **break** — the epic has no more ready work.
    3. Pick the next bead: lowest priority number first (highest priority), ties broken by id for determinism. Record it as `<BEAD_ID>` and add it to `attempted`.
-   4. **Execute `<BEAD_ID>` in a fresh headless session** — see _Per-task headless run_ below. Run exactly one at a time.
+   4. **Execute `<BEAD_ID>` in a fresh session** — `<RUNNER>`=`headless`: see _Per-task headless run_ below; `<RUNNER>`=`herdr`: see _Herdr runner_ below. Run exactly one at a time.
    5. **Determine the outcome from Beads, never from the worker's self-report:** `bd show <BEAD_ID> --json`.
       - status `closed` → add to `done`. Sanity-check that a new commit landed on `<EPIC_BRANCH>` (`git log --oneline <DEFAULT_BRANCH>..HEAD`); if nothing was committed, treat as blocked.
       - status `blocked` → add to `blocked`, record the bead's blocker note.
-      - still `open`/`in_progress` (worker crashed, timed out, or no-op'd) → force `bd update <BEAD_ID> --status blocked` with a reason like "executor-epic-sequential: headless run ended without closing the bead", add to `blocked`.
+      - still `open`/`in_progress` (worker crashed, timed out, or no-op'd) → force `bd update <BEAD_ID> --status blocked` with a reason like "executor-epic-sequential: worker ended without closing the bead", add to `blocked`.
    6. **Infinite-loop guard:** a bead in `attempted` must end each iteration in `done` or `blocked`. If it is neither, force-block it (step 6.5 covers this). Because failed/blocked beads stay out of `bd ready`, their dependents never become ready — that is exactly the skip-and-continue behavior. Never re-run a bead that is already in `attempted` and still not `done`.
 
 7. **Finalize.** When the loop breaks:
@@ -101,13 +106,24 @@ Notes on the invocation:
 - **Per-task timeout** (`<WORKER_TIMEOUT>` = `3600`, ~1h; `5400` when `<IMPLEMENTOR>`=`opencode`, to fit nested implementor rounds) prevents one stuck bead from hanging the whole run. A timeout counts as a failure → force-block and skip.
 - **Keep the driver thin:** capture the JSON to a temp file; do not dump the worker's full transcript into the driver context. Read back only what you need for the summary.
 
+### Herdr runner
+
+When `<RUNNER>`=`herdr`, follow the `run-bead-in-herdr` skill's _Per bead_ steps instead of the `claude -p` call above, from the repo root on `<EPIC_BRANCH>`, one bead at a time:
+
+- `/clear` the agent (by pane ID, without `--wait`) and confirm its session id changed; no change → force-block and skip.
+- Send `<TASK_PROMPT>` verbatim (plus the `opencode` addendum when set, plus the Herdr addendum from `run-bead-in-herdr`), then wait in chunks up to `<WORKER_TIMEOUT>` in milliseconds: `3600000`, or `5400000` when `<IMPLEMENTOR>`=`opencode`.
+- A `blocked` agent goes to the user (in Herdr mode the driver is a live session); a timeout or a stalled prompt is interrupted, force-blocked and skipped.
+- The outcome still comes from `bd show` in step 6.5; only the last `RESULT:` line is read from the pane, for the summary.
+
+The model, effort and permission mode are those the user started the Herdr agent with; the driver does not pass `--model` or `--effort`. Recommend that the agent runs with `--dangerously-skip-permissions` (or a Bash allowlist) so it does not stop on approval prompts.
+
 ### Permissions posture (unattended)
 
 An unattended worker runs arbitrary, repo-specific build/test commands, so a fixed `--allowedTools` allowlist cannot cover them. The practical default for a genuinely unattended run is `--dangerously-skip-permissions`. State this to the user before the first run — it auto-approves every tool call in the worker. The cautious alternative is `--permission-mode acceptEdits` plus a downstream `.claude/settings.json` Bash allowlist that covers the repo's build/test/git/bd commands; offer it if the user prefers a tighter posture.
 
 ### Cost note
 
-Each `claude -p` worker is a separate session with its own token usage. On subscription plans, headless `claude -p` draws from the separate Agent SDK credit pool. A large epic spawns one worker per bead — surface this so the user opts in knowingly.
+Each `claude -p` worker is a separate session with its own token usage. On subscription plans, headless `claude -p` draws from the separate Agent SDK credit pool. A large epic spawns one worker per bead — surface this so the user opts in knowingly. With `<RUNNER>`=`herdr` there is no `claude -p`: the Herdr agent is an interactive session and draws from the interactive subscription pool, not the Agent SDK pool.
 
 ### Implementor note (OpenCode)
 
@@ -116,7 +132,7 @@ In OpenCode mode the worker stays a headless `claude -p` session — it plans, r
 ## Hard Rules
 
 <HARD-GATE>
-The driver MUST spawn a fresh `claude -p` session for every bead. It MUST NOT implement, edit, or "just quickly finish" any bead in its own context — not even a one-line bead, not when only one bead is left, not when spawning feels like overhead. Inline work re-pollutes the driver context and is the exact failure this skill exists to prevent. If you are tempted to skip the headless spawn, that temptation is the thing the skill forbids.
+The driver MUST give every bead a fresh session: a new `claude -p` process, or (with `<RUNNER>`=`herdr`) a confirmed `/clear` of the Herdr agent. It MUST NOT implement, edit, or "just quickly finish" any bead in its own context — not even a one-line bead, not when only one bead is left, not when spawning feels like overhead. Inline work re-pollutes the driver context and is the exact failure this skill exists to prevent. If you are tempted to skip the headless spawn, that temptation is the thing the skill forbids.
 </HARD-GATE>
 
 <HARD-GATE>
@@ -126,7 +142,7 @@ ONE branch, ONE PR. Never create a per-task feature branch, never open a per-tas
 - **Skip-and-continue is mandatory.** A bead that fails or blocks is marked `blocked` and skipped; the run continues with the next ready bead. Never halt the whole run on a single bead's failure, and never retry a blocked bead in a loop.
 - **Outcome from Beads, not self-report.** Always read `bd show <BEAD_ID> --json` to decide done vs blocked.
 - **Never operate from a dirty epic branch**, and never rebase or force-push the epic or default branch during the run. (To refresh the epic branch against the default branch out of band — e.g. before the single PR merges — use the user-invoked `rebase-and-push` skill.)
-- **Sequential only.** One headless worker at a time — they share the working tree.
+- **Sequential only.** One worker at a time — they share the working tree.
 - If the loop would exceed the iteration cap, stop and report rather than spinning.
 
 ## Integration
@@ -138,6 +154,7 @@ ONE branch, ONE PR. Never create a per-task feature branch, never open a per-tas
 **Invokes:**
 
 - a fresh headless `claude -p` **executor cycle per bead** (`beads-claim` → `writing-plans` → impl → `build-and-test` → `verification-before-completion` → `requesting-code-review` → `beads-close`, committing on the epic branch)
+- **`run-bead-in-herdr`** — for every bead, only when `<RUNNER>`=`herdr` (the Herdr agent replaces the `claude -p` worker)
 - **`implement-with-opencode`** — inside each worker, for the implementation step, only when `<IMPLEMENTOR>`=`opencode`
 - **`finishing-a-development-branch`** — once, at the end, to push and open the single epic → default-branch PR
 

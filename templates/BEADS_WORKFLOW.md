@@ -53,6 +53,8 @@ Claims one bead and delivers it.
 
 Optional: pass `opencode` to any executor skill to have step 3 run as a headless OpenCode implementor (`implement-with-opencode`; needs `opencode` on `PATH` and `.opencode/agents/implementor.md` from `agent-workflow-beads update --with-opencode`). Build/test failures and Critical/Important review findings go back to the implementor as fix rounds; Claude keeps every other step.
 
+Optional: pass `herdr` to `executor-epic-sequential` or `executor-epic-sequential-worktree` (from a Herdr orchestrator pane) to run each bead in a named Herdr Claude agent, `/clear`ed between beads, instead of a headless `claude -p` worker (`run-bead-in-herdr`; default agent `implementer`, override with `herdr=<agent>`).
+
 Entry: a ready bead from `bd ready`.
 Exit: bead closed, code committed, follow-up beads created if needed.
 

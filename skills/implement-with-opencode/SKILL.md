@@ -87,6 +87,6 @@ In OpenCode mode Claude NEVER edits source files itself — not a one-line fix, 
 
 ## Integration
 
-**Invoked by:** all seven executor skills when `<IMPLEMENTOR>`=`opencode` (for `executor-epic-sequential*`, by each headless `claude -p` worker).
+**Invoked by:** all seven executor skills when `<IMPLEMENTOR>`=`opencode` (for `executor-epic-sequential*`, by each per-bead worker: a headless `claude -p` session, or the Herdr agent when the epic run uses the `herdr` runner via `run-bead-in-herdr`; either way the worker has no live user, so the rule above still holds for it).
 
 **Needs:** `opencode` on `PATH`, and `.opencode/agents/implementor.md` installed by `agent-workflow-beads bootstrap|update --with-opencode`. OpenCode reads the repo's skills from `.claude/skills/` and its instructions from `CLAUDE.md` (or `AGENTS.md` when one exists) — no separate OpenCode skill copy.

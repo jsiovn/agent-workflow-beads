@@ -4,6 +4,34 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-11-13
+
+A Herdr runner for the whole-epic executors: each bead can run in a named
+interactive Claude agent in Herdr instead of a headless `claude -p` worker.
+
+### Added
+
+- New shared skill `run-bead-in-herdr`: preflight (Herdr session, agent by
+  pane ID, `agent=claude`, idle, cwd equals the checkout), `/clear` sent
+  without `--wait` (it never enters `working`, so `--wait` reports
+  `agent_prompt_stalled`) and confirmed by a changed `agent_session` id,
+  the task prompt, a wait in chunks that fit a tool call, blocked dialogs
+  surfaced to the user, and interrupt + force-block on timeout. Worktree mode
+  starts a dedicated agent in a new tab whose cwd is the worktree and closes
+  only that tab at the end.
+- `executor-epic-sequential` and `executor-epic-sequential-worktree` accept
+  an optional runner argument: `herdr`, `herdr=<agent>`,
+  `--runner herdr [--agent <name>]` or `runner=herdr` (default agent
+  `implementer`). It combines with `opencode`. Without it, workers stay
+  headless `claude -p` sessions.
+
+### Changed
+
+- The epic-sequential Iron Law and hard gate now read "a fresh session per
+  bead" (`claude -p`, or a confirmed `/clear` on the Herdr agent).
+- `implement-with-opencode`, the README, `docs/SKILLS_RELATIONSHIPS.md`,
+  `BEADS_WORKFLOW.md` and both managed snippets mention the Herdr runner.
+
 ## [1.2.0] - 2026-10-29
 
 OpenCode replaces Codex as the optional second AI — as a headless implementor

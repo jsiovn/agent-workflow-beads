@@ -95,6 +95,8 @@ executor-rework-in-place <bead-id>   # bead was reopened, amend the existing PR
 
 **OpenCode implementor (optional).** Add `opencode` to any executor call — e.g. `executor-task <bead-id> opencode`, optionally with `model=<provider/model>` — and only the implementation step runs as a headless `opencode run --agent implementor` (via the `implement-with-opencode` skill). Claude still claims, plans, runs `build-and-test`, reviews the result with its `code-reviewer` (a cross-model review), and closes the bead; test failures and review findings go back to OpenCode as fix rounds. Requires `opencode` on `PATH` and a repo bootstrapped or updated with `--with-opencode`. OpenCode reads the skills from `.claude/skills/` and the instructions from `CLAUDE.md`, so nothing else is duplicated.
 
+**Herdr runner (optional, epic-sequential only).** If you work in [Herdr](https://herdr.dev) with a named Claude agent (default `implementer`), add `herdr` to `executor-epic-sequential <epic-id>` or `executor-epic-sequential-worktree <epic-id>` (`herdr=<agent>` picks another agent). Run it from your Herdr orchestrator pane. Each bead then runs in that interactive agent, which is `/clear`ed between beads, instead of a headless `claude -p` process: you can watch it work, and it uses your interactive subscription pool. The worktree variant starts its own agent in a new tab whose cwd is the worktree and closes that tab at the end. The mechanics live in the `run-bead-in-herdr` skill. It combines with `opencode`.
+
 Other useful skills you'll reach for:
 
 - `address-pr-comments` — when a reviewer left comments on your PR
@@ -145,6 +147,7 @@ Other useful skills you'll reach for:
 | `verification-before-completion` | Forces real verification commands before claiming "done"                                      | Before committing, opening a PR, or asserting success                    |
 | `build-and-test`                 | Runs the literal `## Verification` section of the current execution plan                      | After implementing changes; specialize per repo in stage 2               |
 | `implement-with-opencode`        | Runs an executor's implementation step as a headless OpenCode `implementor`, judging the round from git | When an executor was invoked with the `opencode` argument                |
+| `run-bead-in-herdr`              | Runs each bead of an epic-sequential run in a named Herdr Claude agent (`/clear`, prompt, wait) instead of `claude -p` | When `executor-epic-sequential*` was invoked with the `herdr` argument   |
 
 </details>
 
