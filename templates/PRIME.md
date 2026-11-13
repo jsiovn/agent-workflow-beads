@@ -30,7 +30,6 @@ git checkout -b feat/<bead-id>
 - `executor-epic-task-worktree` is the epic flow inside an isolated git worktree (never touches the main checkout)
 - `executor-epic-sequential <epic-id>` delivers a **whole epic** unattended: it creates `epic/<epic-bead-id>` once, then runs every ready child bead in turn — each in a fresh worker session so context never carries between tasks (inside Herdr: an agent you start in the tab `<epic-id>-implementer`; outside: a headless `claude -p`, `opencode run` or `omp -p`, matching the CLI you run) — committing them onto that one branch, skipping any bead that blocks, and opening a single PR to the default branch at the end (relies on fresh-session-safe beads)
 - `executor-epic-sequential-worktree <epic-id>` is the same whole-epic flow, but it runs inside a sibling git worktree (`../<repo>-epic-<epic-bead-id>`) and never touches the main checkout — use it when the main tree has in-flight work; it leaves the worktree in place for the PR's review/CI follow-up (`cleanup-worktree` removes it later)
-- `executor-rework-in-place` re-executes a reopened bead on the **current** feature branch and pushes more commits into its **existing** open PR (no new branch, no new PR); use after `bd reopen <id>` when the task was wrong
 - Each bead must be fresh-session-safe: rely on the bead contract, persisted inputs, and local inspection rather than prior chat memory
 
 ## Recovery

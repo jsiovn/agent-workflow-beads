@@ -32,7 +32,6 @@ flowchart LR
         ETW[executor-task-worktree<br/>orchestrator<br/>parallel-safe → main]
         EET[executor-epic-task<br/>orchestrator<br/>PR-per-bead → epic branch]
         EETW[executor-epic-task-worktree<br/>orchestrator<br/>parallel-safe → epic branch]
-        ERIP[executor-rework-in-place<br/>orchestrator<br/>amend existing PR in current tree]
         EES[executor-epic-sequential<br/>orchestrator<br/>whole epic → one branch + one PR<br/>fresh headless session per bead]
         EESW[executor-epic-sequential-worktree<br/>orchestrator<br/>whole epic in a worktree<br/>main tree untouched]
         FDB[finishing-a-development-branch]
@@ -69,7 +68,8 @@ flowchart LR
 | `beads-claim`                    | executor                        | Find + claim one ready bead                        | `executor-task` orchestrators, user                                       | —                                                                                  |
 | `writing-plans`                  | executor                        | Write the implementation plan for the claimed bead | `executor-task` orchestrators, user                                       | `requesting-code-review` (for plan review during chunked drafting)                 |
 | `systematic-debugging`           | executor                        | Root-cause investigation when blocked              | implementation step                                                       | —                                                                                  |
-| `responsive-layout-testing`      | executor                        | Screenshot a page at 6 widths via Chrome DevTools MCP, fix overflow/layout breaks | implementation step, user                                  | `systematic-debugging`, `verification-before-completion` (defers completion claim) |
+| `responsive-layout-testing`      | executor (opt-in, `--with-web`) | Screenshot a page at 6 widths via Chrome DevTools MCP, fix overflow/layout breaks | implementation step, user                                  | `systematic-debugging`, `verification-before-completion` (defers completion claim) |
+| `prepare-android-chrome`         | executor (opt-in, `--with-web`) | Prepare a USB-connected Android phone so Chrome on it can be driven via the `chrome-devtools-android` MCP | user                                                                      | —                                                                                  |
 | `verification-before-completion` | executor                        | Evidence-before-claims gate                        | `executor-task` orchestrators                                             | —                                                                                  |
 | `requesting-code-review`         | executor                        | Dispatch the local code-reviewer subagent (`.claude/agents/code-reviewer.md`) | `executor-task` orchestrators (required, not optional)                    | —                                                                                  |
 | `beads-close`                    | executor                        | Close bead + create follow-ups + commit            | `executor-task` orchestrators, user                                       | —                                                                                  |
@@ -77,14 +77,13 @@ flowchart LR
 | `executor-task-worktree`         | executor (orchestrator)         | Same as `executor-task`, but in an isolated git worktree (parallel-safe) | user                                                                      | same chain as `executor-task`                                                      |
 | `executor-epic-task`             | executor (orchestrator)         | Same as `executor-task` but branches off (and PRs into) the bead's parent epic branch `epic/<epic-bead-id>` (bead id only, no slug); auto-creates the epic branch from the default branch if missing | user                                                                      | same chain as `executor-task`                                                      |
 | `executor-epic-task-worktree`    | executor (orchestrator)         | Same as `executor-epic-task`, but in an isolated git worktree (parallel-safe; never touches the main checkout) | user                                                                      | same chain as `executor-task`                                                      |
-| `executor-rework-in-place`       | executor (orchestrator)         | Re-execute a reopened bead on the **current** feature branch and push into its **existing** open PR (no new branch, no new PR) | user                                                                      | `beads-claim` → `writing-plans` (regenerate) → impl → `build-and-test` → verify → `requesting-code-review` → `beads-close` → push + fixup PR comment |
 | `executor-epic-sequential`       | executor (orchestrator)         | Run **all** ready beads of one epic sequentially on a single `epic/<epic-bead-id>` branch — each bead in a **fresh worker session** through the runner picked in preflight (Herdr agent the user starts, or a headless run of the driver's CLI); failures are blocked + skipped; ends with one PR epic → default branch | user                                                                      | `<RUNNER>` → a fresh executor cycle **per bead** (`beads-claim` → `writing-plans` → impl → `build-and-test` → verify → `requesting-code-review` → `beads-close`) → `finishing-a-development-branch` (once) |
 | `executor-epic-sequential-worktree` | executor (orchestrator)      | Same as `executor-epic-sequential`, but runs the whole epic inside a sibling git worktree checked out on `epic/<epic-bead-id>` — never touches the main checkout; seeds git-ignored `.env*`; leaves the worktree in place for PR follow-up | user                                                                      | `<RUNNER>` → a fresh executor cycle **per bead** (in the worktree) → `finishing-a-development-branch` (once) → pairs with `cleanup-worktree` |
 | `run-bead-in-herdr`             | executor                        | Inside Herdr: create or reuse the tab `<epic-id>-implementer` (cwd = the checkout), wait for the user to start Claude Code, OpenCode or omp there and reply `done`, check kind/status/cwd; per bead clear with the kind's command (`/clear` or `/new`), prompt from a file, confirm the new session id once the turn is `working`, chunked wait, dialogs to the user, timeout → kind's interrupt keys + force-block; leaves the tab open; no headless fallback | `executor-epic-sequential*`, when preflight prints `herdr …` | — |
 | `run-bead-headless-claude`      | executor                        | Run one bead in a fresh `claude -p` (Opus 5.5, high effort, `--dangerously-skip-permissions`, JSON output), driver waits with `run_in_background` | `executor-epic-sequential*`, when preflight prints `headless claude` | — |
 | `run-bead-headless-opencode`    | executor                        | Run one bead in a fresh `opencode run --standalone --yolo` from the checkout, stdin closed, OpenCode's default model; driver waits with `background: true` | `executor-epic-sequential*`, when preflight prints `headless opencode` | — |
 | `run-bead-headless-omp`         | executor                        | Run one bead in a fresh `omp -p --yolo` from the checkout, stdin closed, omp's default model; driver waits with `timeout: 0` | `executor-epic-sequential*`, when preflight prints `headless omp` | — |
-| `finishing-a-development-branch` | executor                        | Push the branch and create a PR                    | `executor-task`, `executor-task-worktree`, `executor-epic-task`, `executor-epic-task-worktree`, `executor-rework-in-place`, `executor-epic-sequential`, `executor-epic-sequential-worktree`, user | —                                                                                  |
+| `finishing-a-development-branch` | executor                        | Push the branch and create a PR                    | `executor-task`, `executor-task-worktree`, `executor-epic-task`, `executor-epic-task-worktree`, `executor-epic-sequential`, `executor-epic-sequential-worktree`, user | —                                                                                  |
 | `address-pr-comments`            | maintenance                     | Iterative PR review-comment loop                   | user                                                                      | `pr-comment-fixer` subagent                                                        |
 | `project-auditor`                | maintenance                     | Full-repo audit (naming, structure, light arch)    | user                                                                      | `project-auditor` subagent                                                         |
 | `audit-backlog-rules`            | maintenance                     | Audit ready/blocked beads against current rules    | user                                                                      | —                                                                                  |
@@ -198,10 +197,6 @@ The `executor-*-worktree` orchestrators above bundle worktree **setup + the full
 
 So the executor-agnostic flow is: `create-new-worktree` → (`cd` in) → `executor-task` → `cleanup-worktree`. This is distinct from `executor-task-worktree`, which is the all-in-one that owns setup, execution, and PR in a single invocation.
 
-### Rework variant (`executor-rework-in-place`)
-
-When a bead has already been executed end-to-end, the PR is open, and reviewer or product feedback shows the task itself was wrong (mis-scoped, wrong approach), the user reopens the bead (`bd reopen <id>`), edits its requirements, and invokes `executor-rework-in-place` with the bead id. Unlike the four orchestrators above, this skill **stays on the current feature branch** in the **current main worktree** — no branch is created, no `git checkout <main>` happens, no new PR is opened. The chain re-runs `beads-claim` → `writing-plans` (regenerated against the updated bead text) → impl → `build-and-test` → verify → `requesting-code-review` → `beads-close`, then pushes additional commits into the existing PR and posts a fixup summary comment naming the bead id and the new tip SHA. Hard prereqs: `bead_id` is required, the working tree must be clean, the current branch must not be the default branch, and the branch must have an open PR. Used after, not instead of, `executor-task` / `executor-task-worktree`.
-
 ### Epic workers (epic-sequential pair)
 
 `executor-epic-sequential` and `executor-epic-sequential-worktree` take only the epic id. In preflight a shell-independent Node one-liner reads `HERDR_ENV`, `OMPCODE` and `OPENCODE` (omp also sets `CLAUDECODE`, so `OMPCODE` is checked first) and picks `<RUNNER>`:
@@ -261,7 +256,6 @@ flowchart TD
     USER --> ETW[executor-task-worktree]
     USER --> EET[executor-epic-task]
     USER --> EETW[executor-epic-task-worktree]
-    USER --> ERIP[executor-rework-in-place]
     USER --> EES[executor-epic-sequential]
     USER --> EESW[executor-epic-sequential-worktree]
     USER --> VB[validate-beads]
@@ -317,14 +311,6 @@ flowchart TD
     EETW --> BCL
     EETW --> FDB
 
-    ERIP --> BC
-    ERIP --> WP
-    ERIP -.-> SD
-    ERIP --> BAT
-    ERIP --> VBC
-    ERIP --> RCR
-    ERIP --> BCL
-
     EES -.->|runner per bead| HW([worker session:<br/>Herdr agent or headless CLI])
     EES --> FDB
 
@@ -343,7 +329,7 @@ flowchart TD
     classDef agent fill:#fffde1,stroke:#9e9d24
 
     class PB,BS,PR,BP,VB planner
-    class ET,ETW,EET,EETW,ERIP,EES,EESW,BC,WP,SD,BAT,VBC,RCR,BCL,FDB executor
+    class ET,ETW,EET,EETW,EES,EESW,BC,WP,SD,BAT,VBC,RCR,BCL,FDB executor
     class APC,PA,ABR,PLB,RB,CNW maint
     class AGCR,AGPF,AGPA,HW agent
 ```

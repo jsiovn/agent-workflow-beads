@@ -50,6 +50,7 @@ agent-workflow-beads bootstrap /path/to/your-repo myprefix
 # Opt-in flags — also accepted by `update`, so you can adopt them later
 # (and are auto-detected on later runs once the surface exists):
 #   --with-screenshots   web/UI only: attach-web-screenshots skill + cleanup-screenshots.yml CI workflow
+#   --with-web           web/UI only: responsive-layout-testing + prepare-android-chrome skills
 #   --with-omp           the shared agents converted for omp (.omp/agents/)
 #   --with-opencode      the shared agents converted for OpenCode (.opencode/agents/)
 agent-workflow-beads bootstrap /path/to/your-repo myprefix --with-screenshots
@@ -93,7 +94,6 @@ executor-task-worktree       # same, in an isolated worktree (parallel-safe)
 executor-epic-task           # bead belongs to an epic — PR into the epic branch
 executor-epic-sequential <epic-id>   # run a WHOLE epic on one branch, fresh session per bead, one PR
 executor-epic-sequential-worktree <epic-id>   # same, but in an isolated worktree (main tree untouched)
-executor-rework-in-place <bead-id>   # bead was reopened, amend the existing PR
 ```
 
 **Claude Code, OpenCode and omp.** All three read the skills from `.claude/skills/`. Invoke a skill with `/executor-task <bead-id>` in Claude Code, `/skill:executor-task <bead-id>` in omp, or by naming it in OpenCode ("run the executor-task skill for <bead-id>"). OpenCode and omp do not read `.claude/agents/`: scaffold with `--with-opencode` / `--with-omp` to install the shared agents converted for them (`.opencode/agents/`, `.omp/agents/`, generated from `agents/*.md` with each CLI's frontmatter and marked as generated; never edit the copies). Without the flags, the skills that dispatch an agent (`requesting-code-review`, `address-pr-comments`, `project-auditor`) have the CLI's general subagent read `.claude/agents/<name>.md` instead. On Windows, OpenCode's shell tool is PowerShell unless `"shell"` in `opencode.json` points at Git Bash (`"shell": "C:/Program Files/Git/bin/bash.exe"`); the epic skills need that POSIX shell.
@@ -139,7 +139,6 @@ Other useful skills you'll reach for:
 | `executor-epic-task-worktree`   | Same as `executor-epic-task` but runs in an isolated git worktree                          | Epic flow + parallel beads + main tree must stay untouched                             |
 | `executor-epic-sequential`      | Runs **every** ready bead of one epic sequentially on a single `epic/<epic-bead-id>` branch — each bead in a fresh worker session (a Herdr agent you start, or a headless run of your CLI); blocked beads are skipped; ends with one PR to the default branch | Deliver a whole epic unattended as one branch + one PR, instead of one bead at a time |
 | `executor-epic-sequential-worktree` | Same as `executor-epic-sequential` but runs in a sibling git worktree (`../<repo>-epic-<epic-bead-id>`) and never touches the main checkout; leaves the worktree in place for the PR's follow-up | Deliver a whole epic unattended as one branch + one PR while the main tree keeps its in-flight work |
-| `executor-rework-in-place`      | Re-execute a reopened bead on the current feature branch; push commits into the existing open PR (no new branch, no new PR); requires `bead_id` | Bead was already executed but the task was wrong — user reopened the bead, updated its requirements, and wants to amend the existing PR |
 | `beads-close`                   | Closes the bead, creates follow-ups, commits `.beads/` state                               | Final step of an executor cycle                                                        |
 
 </details>
@@ -170,6 +169,18 @@ Other useful skills you'll reach for:
 | `finishing-a-development-branch` | Pushes the branch and opens a PR                                                      | When all work on a feature branch is done and verified                       |
 
 > `attach-web-screenshots` is opt-in — pass `--with-screenshots` to `agent-workflow-beads bootstrap` (or `agent-workflow-beads update` to adopt later). It ships a companion CI workflow (`.github/workflows/cleanup-screenshots.yml`) that prunes stale screenshot folders for merged branches.
+
+</details>
+
+<details>
+<summary><b>Web-development skills (opt-in, <code>--with-web</code>)</b></summary>
+
+| Skill                       | What it does                                                                                       | When to use                                                       |
+| --------------------------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `responsive-layout-testing` | Screenshots a page at 320–1280px via the Chrome DevTools MCP and fixes horizontal overflow / layout breaks | Checking or fixing how a web page renders across screen sizes     |
+| `prepare-android-chrome`    | Prepares a USB-connected Android phone so Chrome on it can be driven via the `chrome-devtools-android` MCP (adb, DevTools forward, `adb reverse` for a local dev server) | Before testing a page on a real Android device                    |
+
+> Installed only with `--with-web` on `agent-workflow-beads bootstrap` / `update`. Once either skill exists in the downstream, `update` keeps both current without the flag; delete both folders under `.claude/skills/` to opt out.
 
 </details>
 
@@ -233,8 +244,8 @@ One cross-platform command, three subcommands:
 
 | Purpose                          | Command                                                                       |
 | -------------------------------- | ----------------------------------------------------------------------------- |
-| Bootstrap a new downstream repo  | `agent-workflow-beads bootstrap [--with-screenshots] [--with-omp] [--with-opencode] <repo> <prefix>` |
-| Refresh shared workflow surface  | `agent-workflow-beads update [--with-screenshots] [--with-omp] [--with-opencode] <repo>`            |
+| Bootstrap a new downstream repo  | `agent-workflow-beads bootstrap [--with-screenshots] [--with-web] [--with-omp] [--with-opencode] <repo> <prefix>` |
+| Refresh shared workflow surface  | `agent-workflow-beads update [--with-screenshots] [--with-web] [--with-omp] [--with-opencode] <repo>`            |
 | Prerequisite check               | `agent-workflow-beads check [--with-omp] [--with-opencode]`                                          |
 
 Run `agent-workflow-beads --help` for the full usage, or `agent-workflow-beads --version` to see the installed version.

@@ -10,9 +10,10 @@ Use this guide when starting a downstream repo from scratch or when a repo is st
    - `dolt`
    - `git`
 2. Bootstrap the repo from this template:
-   - `agent-workflow-beads bootstrap [--with-screenshots] [--with-omp] [--with-opencode] /path/to/repo <prefix>`
+   - `agent-workflow-beads bootstrap [--with-screenshots] [--with-web] [--with-omp] [--with-opencode] /path/to/repo <prefix>`
    - The same command works on macOS, Linux, and Windows.
    - Pass `--with-screenshots` only for web/UI projects that want the `attach-web-screenshots` skill plus its companion `.github/workflows/cleanup-screenshots.yml`. Omit for backend, CLI, or library repos.
+   - Pass `--with-web` only for web/UI projects that want the `responsive-layout-testing` and `prepare-android-chrome` skills. A later `update` keeps them current without the flag.
    - Claude Code is the primary AI: the `.claude/` surface is always installed. OpenCode and omp read the same `.claude/skills/` but not `.claude/agents/`: pass `--with-opencode` and/or `--with-omp` to also install the shared agents converted for those CLIs (`.opencode/agents/<name>.md`, `.omp/agents/<name>.md`, each marked as generated; a later `update` keeps them current without the flag). Without the flags, skills that dispatch an agent fall back to a general subagent reading `.claude/agents/<name>.md` (on Windows, set OpenCode's `"shell"` to Git Bash before running the epic skills from it; see [INSTALL.md](INSTALL.md)).
 3. The bootstrap script:
    - initializes git if the target path is not already a repo
