@@ -2,19 +2,10 @@
 Thumbs.db
 __pycache__/
 *.py[cod]
-/.beads/
 .idea/
 node_modules/
 *.tgz
 
-# BEGIN TEMPLATE AGENT WORKFLOW LOCAL-ONLY
-.beads-credential-key
-.beads/interactions.jsonl
-.beads/epic-runs
-.claude/scheduled_tasks.lock
+# Claude Code machine-local files
 .claude/settings.local.json
-.bv/
-*.db
-.dolt/
-docs/plans/
-# END TEMPLATE AGENT WORKFLOW LOCAL-ONLY
+.claude/scheduled_tasks.lock

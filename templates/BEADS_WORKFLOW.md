@@ -19,7 +19,6 @@ Claude Code enters the workflow through repo-local skills installed under `.clau
 - `executor-epic-task-worktree`
 - `executor-epic-sequential`
 - `executor-epic-sequential-worktree`
-- `executor-rework-in-place`
 
 When an executor skill stops on a blocker, continue in normal chat by telling the agent to resume the blocked bead.
 
@@ -80,12 +79,6 @@ The worker is picked automatically; the skill takes only the epic id:
 The epic skills need a POSIX shell (Git Bash on Windows). OpenCode on Windows runs PowerShell unless `"shell"` in `opencode.json` points at Git Bash's `bash.exe`.
 
 `executor-epic-sequential` switches the **main checkout** onto the epic branch, so it requires a clean working tree (no auto-stash). `executor-epic-sequential-worktree` does the same run inside a **sibling git worktree** (`../<repo>-epic-<epic-bead-id>`) and never touches the main tree — use it when the main checkout has in-flight work that must stay undisturbed. It leaves the worktree in place for the PR's review comments and CI fixes; remove it with `cleanup-worktree` once the PR lands.
-
-When a bead was already executed but the task itself turned out to be wrong:
-
-- **Rework into the existing PR (no new branch, no new PR):** `executor-rework-in-place`
-
-Use this after `bd reopen <bead-id>` and editing the bead's requirements. It stays on the current feature branch in the current working tree, re-runs the executor chain against the updated bead, pushes new commits into the existing open PR, and posts a top-level fixup comment naming the bead id and the new tip SHA. Requires `bead_id`; refuses to run on the default branch, on a dirty tree, or when the current branch has no open PR.
 
 ## Session Boundaries
 

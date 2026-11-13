@@ -4,6 +4,61 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-11-13
+
+The two web-only skills become opt-in, the unused rework executor is gone, and
+the scaffolded ignore rules catch up with bd 1.3.4.
+
+### Added
+
+- `--with-web` (on `bootstrap` and `update`): installs the web-development
+  skills `responsive-layout-testing` and `prepare-android-chrome` into
+  `.claude/skills/`. Separate from `--with-screenshots`. Once either skill
+  exists in a downstream, `update` keeps both current without the flag.
+
+### Changed
+
+- `responsive-layout-testing` and `prepare-android-chrome` moved from `skills/`
+  to `templates/web-skills/`, so they no longer ship to every downstream. Their
+  content is unchanged, and they are still replaced on every run like the shared
+  skills (not preserved like `templates/skills/`).
+- The managed `.gitignore` block adds `*.gate.lock*`, the workspace-gate lock
+  bd 1.3.4 creates at the repo root (`.beads.gate.lock`). It is the same line
+  `bd init` writes, so `update` folds bd's copy into the block.
+- The managed `.gitignore` block is now the only ignore list the template
+  maintains (see Removed for `.beads/.gitignore`).
+- `create-new-worktree` never copies `*.gate.lock*` into a worktree.
+- `ATTRIBUTION.md` reproduces the full obra/superpowers MIT notice and now
+  ships in the npm package.
+
+### Removed
+
+- `executor-rework-in-place`, with its references in the managed
+  `CLAUDE.md` / `AGENTS.md` blocks, `BEADS_WORKFLOW.md`, `.beads/PRIME.md` and
+  `create-new-worktree`. Added to `LEGACY_SKILLS`, so `update` deletes it
+  downstream.
+- The scaffolded `.beads/.gitignore` (`templates/.beads/beads.gitignore`).
+  Scaffold no longer overwrites the file `bd init` writes, so new repos get
+  bd's own rules, which follow bd upgrades. The old copy had fallen behind
+  bd 1.3.4 (`.beads/dolt-server-config.yaml` showed up as untracked), and its
+  `config.yaml` / `metadata.json` rules had no effect because `bd init`
+  commits both files.
+
+### Migration
+
+- Run `agent-workflow-beads update <repo>` and commit the result:
+  `executor-rework-in-place` disappears. Downstreams scaffolded by 1.0.0–1.3.0
+  already have both web skills, so they are detected and kept current; to opt
+  out, delete `.claude/skills/responsive-layout-testing/` and
+  `.claude/skills/prepare-android-chrome/` once and commit.
+- New repos: pass `--with-web` to `bootstrap` for web/UI projects.
+- The `.gitignore` managed block gains `*.gate.lock*` once on that `update`;
+  commit it with the rest.
+- `update` leaves an existing `.beads/.gitignore` alone, so a downstream keeps
+  the old template copy. `bd doctor` reports it as outdated and lists the
+  missing patterns. Add them by hand, or run `bd doctor --fix -i` and accept only
+  the gitignore fix (plain `--fix` also installs git and Cursor hooks).
+
 ## [1.3.0] - 2026-11-13
 
 The whole-epic executors pick their per-bead worker themselves, and the

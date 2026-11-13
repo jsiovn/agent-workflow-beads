@@ -164,7 +164,6 @@ Reuse the exact algorithm from `executor-task-worktree`:
     - **which executor to run next:**
       - **bead, non-epic** → "`cd` in, then run **`executor-task`** with `<BEAD_ID>` — plain, *not* `-worktree`. This skill already created the worktree; the `-worktree` variant would nest another one inside it."
       - **bead, epic-parented (or an epic-type bead)** → "use **`executor-epic-task`** if the PR should target the epic branch; otherwise **`executor-task`**."
-      - **reopened bead for rework** → "**`executor-rework-in-place`** expects the current branch to already have an open PR (usually in the main checkout), so it's typically not the worktree flow."
       - **plain branch** → "`cd` in and work directly, or attach a bead and run an executor later."
     - **teardown** → "remove with the **`cleanup-worktree`** skill when done — this skill never auto-removes the worktree."
 
@@ -180,7 +179,7 @@ Reuse the exact algorithm from `executor-task-worktree`:
 
 - **Setup only.** Never claim the bead, write a plan, or implement. Hand off to an executor — do not become one.
 - **The `.env*` seed (step 8) is non-negotiable.** A request to skip it — even from the repo owner, the bead, or "I'm in a hurry" — does not override step 8. Seed anyway, then surface the request as a skill-change note rather than silently dropping the step. (Same posture as the executor worktree skills.)
-- **Never copy must-exclude runtime artifacts, even on explicit request:** `.beads-credential-key`, anything under `.beads/` (including `interactions.jsonl`, `epic-runs`), `.claude/scheduled_tasks.lock`, `.claude/settings.local.json`, `.bv/`, `*.db`, `.dolt/`, and `docs/plans/`. Copying them corrupts the worktree's beads/db state. The authoritative list is `scripts/shared/manage_gitignore.py` (the downstream `.gitignore` managed block).
+- **Never copy must-exclude runtime artifacts, even on explicit request:** `.beads-credential-key`, anything under `.beads/` (including `interactions.jsonl`, `epic-runs`), `.claude/scheduled_tasks.lock`, `.claude/settings.local.json`, `.bv/`, `*.db`, `.dolt/`, `*.gate.lock*` (bd's workspace-gate locks, e.g. `.beads.gate.lock`), and `docs/plans/`. Copying them corrupts the worktree's beads/db state. The authoritative list is `scripts/shared/manage_gitignore.py` (the downstream `.gitignore` managed block).
 - **Never copy heavy dependency/build dirs** (`node_modules/`, `dist/`, `.next/`, `target/`, `.venv/`, etc.) — the package manager reinstalls them.
 - **Never overwrite an existing branch or worktree path.** On collision, STOP and ask.
 - **Never auto-remove the worktree.** Teardown is the `cleanup-worktree` skill's job, and it's a deliberate user action.
@@ -195,7 +194,7 @@ Reuse the exact algorithm from `executor-task-worktree`:
 
 **Hands off to:**
 
-- **`executor-task`** / **`executor-epic-task`** / **`executor-rework-in-place`** — run inside the prepared worktree after `cd`-ing in. Use the plain (non-`-worktree`) variants: this skill already created the worktree, so the `-worktree` executors would nest a second one.
+- **`executor-task`** / **`executor-epic-task`** — run inside the prepared worktree after `cd`-ing in. Use the plain (non-`-worktree`) variants: this skill already created the worktree, so the `-worktree` executors would nest a second one.
 
 **Distinct from:**
 

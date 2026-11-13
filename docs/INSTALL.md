@@ -65,7 +65,7 @@ agent-workflow-beads --version
 ## 5. Bootstrap a repo
 
 ```bash
-agent-workflow-beads bootstrap [--with-screenshots] [--with-omp] [--with-opencode] /path/to/repo yourprefix
+agent-workflow-beads bootstrap [--with-screenshots] [--with-web] [--with-omp] [--with-opencode] /path/to/repo yourprefix
 ```
 
 Bootstrap initializes git if needed, runs `bd init -p yourprefix --server --skip-agents --skip-hooks`,

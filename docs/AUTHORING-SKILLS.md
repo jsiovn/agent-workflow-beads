@@ -19,7 +19,9 @@ seam instead of creating a parallel one.
       on every run — OpenCode and omp read skills from there too), or stage-1 /
       bootstrap-only (`templates/skills/<name>/`,
       copied once and preserved — used today for `build-and-test` and the
-      opt-in `attach-web-screenshots`)?
+      opt-in `attach-web-screenshots`), or opt-in web-development
+      (`templates/web-skills/<name>/`, installed only with `--with-web` or when
+      one already exists downstream, replaced on every run)?
 - [ ] **Stay CLI-neutral.** Skills run in Claude Code, OpenCode and omp. Name
       tools by role ("the shell tool", "a general subagent"), not by one CLI's
       tool name. When a skill dispatches an agent, use the shared dispatch
