@@ -22,8 +22,11 @@ seam instead of creating a parallel one.
       opt-in `attach-web-screenshots`)?
 - [ ] **Stay CLI-neutral.** Skills run in Claude Code, OpenCode and omp. Name
       tools by role ("the shell tool", "a general subagent"), not by one CLI's
-      tool name, and never rely on `.claude/agents/` without the fallback in
-      `requesting-code-review`. Shell snippets assume a POSIX shell (Git Bash on
+      tool name. When a skill dispatches an agent, use the shared dispatch
+      sentence (Claude Code Task tool, OpenCode `subagent`, omp `task`) plus the
+      fallback for repos scaffolded without `--with-opencode` / `--with-omp`: a
+      general subagent told to first read `.claude/agents/<name>.md` (see
+      `requesting-code-review`). Shell snippets assume a POSIX shell (Git Bash on
       Windows); a command the driver must run before that is checked uses Node.
 - [ ] **Pick the type.** Technique (concrete steps), Pattern (way of thinking),
       or Reference (lookup). Don't blend — a Technique with no steps is a Pattern

@@ -17,6 +17,7 @@ Two sources of feedback are checked on every run:
 ## Where the subagent lives
 
 - `.claude/agents/pr-comment-fixer.md`
+- `.omp/agents/pr-comment-fixer.md` / `.opencode/agents/pr-comment-fixer.md`: generated copies, present only when the repo was scaffolded with `--with-omp` / `--with-opencode` (never edit those; the source is `agents/pr-comment-fixer.md` in the template).
 
 If it is missing, run `agent-workflow-beads update` against the repo to install it.
 
@@ -131,7 +132,7 @@ Transform the results into the brief schema the subagent expects. Every item has
 
 Dispatch the `pr-comment-fixer` subagent:
 
-Task tool with `subagent_type: pr-comment-fixer`, prompt = the JSON brief plus a one-line preamble: `Address these unresolved review items on PR #<num>. Brief follows.`
+Dispatch the `pr-comment-fixer` agent with your CLI's subagent tool (Claude Code: Task tool, `subagent_type`; OpenCode: `subagent` tool, `agent`; omp: `task` tool, `agent` inside `tasks[]`), prompt = the JSON brief plus a one-line preamble: `Address these unresolved review items on PR #<num>. Brief follows.` No agent of that name in this CLI (repo scaffolded without `--with-opencode` / `--with-omp`) → the general subagent, told to first read `.claude/agents/pr-comment-fixer.md` and follow it as its standing instructions (it may edit files, but never commits, pushes, or calls a GitHub API).
 
 The subagent edits files and returns a JSON summary (schema in its definition). It does **not** commit, push, or call any GitHub API.
 
@@ -281,6 +282,6 @@ Each iteration is one small fixup commit. Do not amend or force-push between ite
 - **`requesting-code-review`** — that skill dispatches a fresh review; this one closes the loop on review comments already received.
 - **`build-and-test`** — must pass after fixes before pushing.
 
-**Subagent:** `pr-comment-fixer` (definition in `agents/pr-comment-fixer.md`).
+**Subagent:** `pr-comment-fixer` (definition in `agents/pr-comment-fixer.md`; generated omp / OpenCode copies with `--with-omp` / `--with-opencode`).
 
 **Called by:** the user, manually, whenever new unresolved review comments appear on the active PR.

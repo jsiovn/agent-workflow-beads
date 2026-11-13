@@ -82,7 +82,7 @@ Runs at the end of the epic skill's checkout setup, before "run unattended". `<C
 4. **Wait** in chunks that fit a tool call, with the tool call's own timeout set to 10 minutes:
 
    ```bash
-   herdr agent wait "<PANE>" --timeout $((9 * 60 * 1000))   # 9 minutes; returns on idle, done or blocked
+   herdr agent wait "<PANE>" --timeout 540000   # 9 minutes; returns on idle, done or blocked
    ```
 
    Repeat while it returns `timeout` and the total is under `<WORKER_TIMEOUT>` × 1000 ms. Between chunks print one progress line (bead id, minutes elapsed), nothing more.
@@ -95,7 +95,7 @@ Runs at the end of the epic skill's checkout setup, before "run unattended". `<C
 6. **Summary line.** Read only the last result line (OpenCode draws a side panel, so cut at the first run of three spaces):
 
    ```bash
-   herdr agent read "<PANE>" --source recent-unwrapped --lines 200 | grep -oE 'RESULT: (closed|blocked).*' | tail -1 | sed 's/   .*//'
+   herdr agent read "<PANE>" --source recent-unwrapped --lines 200 | grep -oE 'RESULT: (closed|blocked) .*' | tail -1 | sed 's/   .*//'
    ```
 
    If the agent is idle, the bead is still `in_progress` and there is no `RESULT:` line, the worker stopped early: force-block the bead ("run-bead-in-herdr: worker ended without closing the bead").

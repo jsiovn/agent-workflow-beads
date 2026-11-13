@@ -50,7 +50,10 @@ agent-workflow-beads bootstrap /path/to/your-repo myprefix
 # Opt-in flags — also accepted by `update`, so you can adopt them later
 # (and are auto-detected on later runs once the surface exists):
 #   --with-screenshots   web/UI only: attach-web-screenshots skill + cleanup-screenshots.yml CI workflow
+#   --with-omp           the shared agents converted for omp (.omp/agents/)
+#   --with-opencode      the shared agents converted for OpenCode (.opencode/agents/)
 agent-workflow-beads bootstrap /path/to/your-repo myprefix --with-screenshots
+agent-workflow-beads bootstrap /path/to/your-repo myprefix --with-omp --with-opencode
 ```
 
 ### 3. Refresh later
@@ -59,6 +62,8 @@ When this template gets updates, upgrade the CLI (`npm install -g agent-workflow
 
 ```bash
 agent-workflow-beads update /path/to/your-repo
+# add the omp / OpenCode agents later (kept current on every later update):
+agent-workflow-beads update /path/to/your-repo --with-omp --with-opencode
 ```
 
 For a guided walkthrough of a brand-new project, see [docs/SETUP-NEW-REPO.md](docs/SETUP-NEW-REPO.md).
@@ -91,7 +96,7 @@ executor-epic-sequential-worktree <epic-id>   # same, but in an isolated worktre
 executor-rework-in-place <bead-id>   # bead was reopened, amend the existing PR
 ```
 
-**Claude Code, OpenCode and omp.** All three read the skills from `.claude/skills/`. Invoke a skill with `/executor-task <bead-id>` in Claude Code, `/skill:executor-task <bead-id>` in omp, or by naming it in OpenCode ("run the executor-task skill for <bead-id>"). OpenCode and omp do not read `.claude/agents/`, so `requesting-code-review` has their general subagent read `.claude/agents/code-reviewer.md` instead. On Windows, OpenCode's shell tool is PowerShell unless `"shell"` in `opencode.json` points at Git Bash (`"shell": "C:/Program Files/Git/bin/bash.exe"`); the epic skills need that POSIX shell.
+**Claude Code, OpenCode and omp.** All three read the skills from `.claude/skills/`. Invoke a skill with `/executor-task <bead-id>` in Claude Code, `/skill:executor-task <bead-id>` in omp, or by naming it in OpenCode ("run the executor-task skill for <bead-id>"). OpenCode and omp do not read `.claude/agents/`: scaffold with `--with-opencode` / `--with-omp` to install the shared agents converted for them (`.opencode/agents/`, `.omp/agents/`, generated from `agents/*.md` with each CLI's frontmatter and marked as generated; never edit the copies). Without the flags, the skills that dispatch an agent (`requesting-code-review`, `address-pr-comments`, `project-auditor`) have the CLI's general subagent read `.claude/agents/<name>.md` instead. On Windows, OpenCode's shell tool is PowerShell unless `"shell"` in `opencode.json` points at Git Bash (`"shell": "C:/Program Files/Git/bin/bash.exe"`); the epic skills need that POSIX shell.
 
 **Who runs each bead of an epic.** `executor-epic-sequential*` take only the epic id and pick the worker themselves:
 
@@ -228,9 +233,9 @@ One cross-platform command, three subcommands:
 
 | Purpose                          | Command                                                                       |
 | -------------------------------- | ----------------------------------------------------------------------------- |
-| Bootstrap a new downstream repo  | `agent-workflow-beads bootstrap [--with-screenshots] <repo> <prefix>` |
-| Refresh shared workflow surface  | `agent-workflow-beads update [--with-screenshots] <repo>`            |
-| Prerequisite check               | `agent-workflow-beads check`                                          |
+| Bootstrap a new downstream repo  | `agent-workflow-beads bootstrap [--with-screenshots] [--with-omp] [--with-opencode] <repo> <prefix>` |
+| Refresh shared workflow surface  | `agent-workflow-beads update [--with-screenshots] [--with-omp] [--with-opencode] <repo>`            |
+| Prerequisite check               | `agent-workflow-beads check [--with-omp] [--with-opencode]`                                          |
 
 Run `agent-workflow-beads --help` for the full usage, or `agent-workflow-beads --version` to see the installed version.
 

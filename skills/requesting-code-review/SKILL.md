@@ -11,7 +11,7 @@ Dispatch the repo-local `code-reviewer` subagent to catch issues before they cas
 
 ## Where the reviewer lives
 
-The `code-reviewer` subagent definition is the single source of truth for the reviewer's checklist, severity rules, and output format. In this template it lives at `agents/code-reviewer.md`. The scaffold always installs it into the downstream repo at `.claude/agents/code-reviewer.md`. If it is missing, run `agent-workflow-beads update` against the repo to install it.
+The `code-reviewer` subagent definition is the single source of truth for the reviewer's checklist, severity rules, and output format. In this template it lives at `agents/code-reviewer.md`. The scaffold always installs it into the downstream repo at `.claude/agents/code-reviewer.md`, and, when the repo was scaffolded with `--with-omp` / `--with-opencode`, generated copies at `.omp/agents/code-reviewer.md` / `.opencode/agents/code-reviewer.md` (never edit those; edit the source and re-run `update`). If it is missing, run `agent-workflow-beads update` against the repo to install it.
 
 The prompt template at `brief.md` (alongside this `SKILL.md`) is **only** the dynamic brief — placeholders for what was built, the plan, and the SHA range. It deliberately does not repeat the checklist; the agent definition already has it.
 
@@ -40,9 +40,7 @@ HEAD_SHA=$(git rev-parse HEAD)
 
 **2. Dispatch the `code-reviewer` subagent:**
 
-Call the Task tool with `subagent_type: code-reviewer` and a prompt built from the template at `requesting-code-review/brief.md` (this file is shipped alongside the SKILL.md).
-
-**No `code-reviewer` agent type in this CLI?** OpenCode and omp do not read `.claude/agents/`, so they have no `code-reviewer` type. Then dispatch the CLI's general-purpose subagent (OpenCode's `general` through its subagent tool, omp's `task` tool) with the same filled brief, prefixed by: "First read `.claude/agents/code-reviewer.md` and follow it as your standing instructions. You are read-only: never edit, stage, or commit files." Do not substitute any other built-in reviewer agent; the repo's checklist lives in that file.
+Dispatch the `code-reviewer` agent with your CLI's subagent tool (Claude Code: Task tool, `subagent_type`; OpenCode: `subagent` tool, `agent`; omp: `task` tool, `agent` inside `tasks[]`), with a prompt built from the template at `requesting-code-review/brief.md` (this file is shipped alongside the SKILL.md). No agent of that name in this CLI (repo scaffolded without `--with-opencode` / `--with-omp`) → the general subagent, told to first read `.claude/agents/code-reviewer.md`: prefix the same filled brief with "First read `.claude/agents/code-reviewer.md` and follow it as your standing instructions. You are read-only: never edit, stage, or commit files." Do not substitute any other built-in reviewer agent (omp's `reviewer` included); the repo's checklist lives in that file.
 
 **Placeholders to fill in the prompt:**
 
@@ -129,7 +127,7 @@ You: [Fix progress indicators]
 - `SKILL.md` — this file
 - `brief.md` — the prompt template (dynamic brief only) you fill in and pass to the subagent
 
-The reviewer's standing instructions live separately at `agents/code-reviewer.md` in the template root and are deployed by the scaffold to `.claude/agents/code-reviewer.md`.
+The reviewer's standing instructions live separately at `agents/code-reviewer.md` in the template root and are deployed by the scaffold to `.claude/agents/code-reviewer.md` (plus the generated `.omp/agents/` / `.opencode/agents/` copies when those flags were used).
 
 ## Pairing with `verification-before-completion`
 

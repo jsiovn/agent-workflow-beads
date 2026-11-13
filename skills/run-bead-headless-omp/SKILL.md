@@ -21,19 +21,20 @@ The epic skill's preflight printed `headless omp`: the driver is an omp session 
 Run this with the bash tool's `timeout: 0` (no tool timeout; the `timeout <WORKER_TIMEOUT>` in the command is the limit). If omp moves the call to a background job, wait for its result; do not poll.
 
 ```bash
-cd "<CHECKOUT>" && timeout <WORKER_TIMEOUT> omp -p --yolo \
+cd "<CHECKOUT>" && timeout <WORKER_TIMEOUT> omp -p --yolo --wait-async \
   "$(cat "<PROMPT_FILE>")" \
   < /dev/null > "<RUN_TMP>/<BEAD_ID>.out" 2> "<RUN_TMP>/<BEAD_ID>.err"; echo "exit=$?"
 ```
 
 - `< /dev/null` is required: an open empty stdin pipe blocks `omp -p` at startup.
+- `--wait-async` is required: without it, print mode cancels background subagents at exit, so a review subagent the worker started (the general-subagent fallback of `requesting-code-review` is not blocking) would be dropped.
 - In print mode stdout holds only the final assistant text. Exit `0` is success, `1` an error or abort, `3` the cost cap.
 - Add `--model <id>` or `--thinking <level>` only when the user named them for this run.
 - Exit `124` means the worker hit `<WORKER_TIMEOUT>`: report "timed out". Any other non-zero exit: report the exit code and the last 20 lines of the `.err` file.
 - For the summary, read only the last result line. Never paste the rest of the output into the driver:
 
   ```bash
-  grep -aE 'RESULT: (closed|blocked)' "<RUN_TMP>/<BEAD_ID>.out" | tail -1
+  grep -aE 'RESULT: (closed|blocked) ' "<RUN_TMP>/<BEAD_ID>.out" | tail -1
   ```
 
 ## Hard rules

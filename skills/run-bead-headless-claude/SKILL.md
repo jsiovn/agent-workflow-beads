@@ -36,7 +36,7 @@ cd "<CHECKOUT>" && timeout <WORKER_TIMEOUT> claude -p "$(cat "<PROMPT_FILE>")" \
 - For the summary, read only the last result line, from the JSON's `result` field. Never paste the rest of the output into the driver:
 
   ```bash
-  node -e 'const r=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).result||"";console.log(r.split("\n").filter(l=>/^RESULT: (closed|blocked)/.test(l)).pop()||"no RESULT line")' "<RUN_TMP>/<BEAD_ID>.out"
+  node -e 'const r=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).result||"";console.log(r.split("\n").filter(l=>/^RESULT: (closed|blocked) /.test(l)).pop()||"no RESULT line")' "<RUN_TMP>/<BEAD_ID>.out"
   ```
 
 ## Hard rules

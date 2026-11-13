@@ -34,7 +34,7 @@ cd "<CHECKOUT>" && timeout <WORKER_TIMEOUT> opencode run --standalone --yolo \
 - For the summary, read only the last result line. Never paste the rest of the output into the driver:
 
   ```bash
-  grep -aE 'RESULT: (closed|blocked)' "<RUN_TMP>/<BEAD_ID>.out" | tail -1
+  grep -aE 'RESULT: (closed|blocked) ' "<RUN_TMP>/<BEAD_ID>.out" | tail -1
   ```
 
 ## Hard rules
