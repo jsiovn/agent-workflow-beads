@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-11-14
+
+### Fixed
+
+- `bootstrap` / `update` failed with `ENOENT ... templates\.beads\README.md`:
+  1.4.0 removed the template file but scaffold still copied it. Scaffold no
+  longer touches `.beads/README.md`; bd writes and owns it.
+
 ## [1.4.0] - 2026-11-13
 
 The two web-only skills become opt-in, the unused rework executor is gone, and
