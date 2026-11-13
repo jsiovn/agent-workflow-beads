@@ -10,15 +10,15 @@ Use this guide when starting a downstream repo from scratch or when a repo is st
    - `dolt`
    - `git`
 2. Bootstrap the repo from this template:
-   - `agent-workflow-beads bootstrap [--with-screenshots] [--with-opencode] /path/to/repo <prefix>`
+   - `agent-workflow-beads bootstrap [--with-screenshots] [--with-omp] [--with-opencode] /path/to/repo <prefix>`
    - The same command works on macOS, Linux, and Windows.
    - Pass `--with-screenshots` only for web/UI projects that want the `attach-web-screenshots` skill plus its companion `.github/workflows/cleanup-screenshots.yml`. Omit for backend, CLI, or library repos.
-   - Claude Code is the primary AI: the `.claude/` surface is always installed. Pass `--with-opencode` to also install the OpenCode implementor agent (`.opencode/agents/implementor.md`), which lets any executor skill delegate its implementation step with the `opencode` argument. (It is auto-detected and kept current if the downstream already has `.opencode/agents/`.)
+   - Claude Code is the primary AI: the `.claude/` surface is always installed. OpenCode and omp read the same `.claude/skills/` but not `.claude/agents/`: pass `--with-opencode` and/or `--with-omp` to also install the shared agents converted for those CLIs (`.opencode/agents/<name>.md`, `.omp/agents/<name>.md`, each marked as generated; a later `update` keeps them current without the flag). Without the flags, skills that dispatch an agent fall back to a general subagent reading `.claude/agents/<name>.md` (on Windows, set OpenCode's `"shell"` to Git Bash before running the epic skills from it; see [INSTALL.md](INSTALL.md)).
 3. The bootstrap script:
    - initializes git if the target path is not already a repo
    - runs `bd init -p <prefix> --server --skip-agents --skip-hooks`
    - runs `bd setup claude` (never `bd setup opencode` — its `AGENTS.md` section would shadow `CLAUDE.md` for OpenCode)
-   - scaffolds the shared workflow docs and skills into `.claude/` (plus `.opencode/agents/` only with `--with-opencode`)
+   - scaffolds the shared workflow docs and skills into `.claude/`
    - installs the managed root `.gitignore` block for local runtime artifacts (Beads/Dolt state, `*.db`, etc.); plans under `docs/plans/` are committed per bead by `writing-plans`
    - creates a standalone stage-2 bead for specializing `build-and-test`, plus a matching bead for `attach-web-screenshots` only when that opt-in skill was installed
 4. Verify the repo is ready:

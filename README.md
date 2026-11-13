@@ -1,6 +1,6 @@
 # Agent Workflow Beads
 
-A scaffold that installs a consistent **planner → executor** workflow for **AI coding agents** into any repo — a shared set of skills, subagents, and [Beads](https://github.com/steveyegge/beads)-backed task tracking so that **Claude Code** (the primary AI) follows the same playbook in every project, with an optional headless **OpenCode** implementor that executors can hand the coding step to. You plan once, execute one bead per PR, and ship.
+A scaffold that installs a consistent **planner → executor** workflow for **AI coding agents** into any repo — a shared set of skills, subagents, and [Beads](https://github.com/steveyegge/beads)-backed task tracking so that **Claude Code** (the primary AI) follows the same playbook in every project. **OpenCode** and **omp** read the same skills, and the whole-epic executor runs each bead in whichever of the three you use. You plan once, execute one bead per PR, and ship.
 
 This repo runs nothing itself — it's developer tooling for AI coding agents, not a CI/CD or GitHub Actions "workflow." You install the `agent-workflow-beads` CLI once on your machine, then run one command per project to scaffold (or refresh) the workflow inside that project.
 
@@ -17,7 +17,6 @@ You need these machine-wide tools before bootstrapping any project:
 | Node.js ≥18 | Runs the `agent-workflow-beads` CLI (via `npm`) | `node --version`   |
 | `bd`       | Beads CLI (issue tracking)                | `bd version`       |
 | `dolt`     | Storage backend used by `bd`              | `dolt version`     |
-| `opencode` | _Optional_ — only for the OpenCode implementor (`--with-opencode`) | `opencode --version` |
 
 `git` is also required (you almost certainly already have it). Per-OS instructions for installing `bd` and `dolt` are in [docs/INSTALL.md](docs/INSTALL.md). The CLI itself is pure Node — there is no Python, bash, or PowerShell dependency, and it works the same on macOS, Linux, and Windows.
 
@@ -50,9 +49,11 @@ agent-workflow-beads bootstrap /path/to/your-repo myprefix
 
 # Opt-in flags — also accepted by `update`, so you can adopt them later
 # (and are auto-detected on later runs once the surface exists):
-#   --with-opencode      also scaffold the OpenCode implementor agent: .opencode/agents/implementor.md
 #   --with-screenshots   web/UI only: attach-web-screenshots skill + cleanup-screenshots.yml CI workflow
-agent-workflow-beads bootstrap /path/to/your-repo myprefix --with-opencode --with-screenshots
+#   --with-omp           the shared agents converted for omp (.omp/agents/)
+#   --with-opencode      the shared agents converted for OpenCode (.opencode/agents/)
+agent-workflow-beads bootstrap /path/to/your-repo myprefix --with-screenshots
+agent-workflow-beads bootstrap /path/to/your-repo myprefix --with-omp --with-opencode
 ```
 
 ### 3. Refresh later
@@ -61,6 +62,8 @@ When this template gets updates, upgrade the CLI (`npm install -g agent-workflow
 
 ```bash
 agent-workflow-beads update /path/to/your-repo
+# add the omp / OpenCode agents later (kept current on every later update):
+agent-workflow-beads update /path/to/your-repo --with-omp --with-opencode
 ```
 
 For a guided walkthrough of a brand-new project, see [docs/SETUP-NEW-REPO.md](docs/SETUP-NEW-REPO.md).
@@ -93,7 +96,12 @@ executor-epic-sequential-worktree <epic-id>   # same, but in an isolated worktre
 executor-rework-in-place <bead-id>   # bead was reopened, amend the existing PR
 ```
 
-**OpenCode implementor (optional).** Add `opencode` to any executor call — e.g. `executor-task <bead-id> opencode`, optionally with `model=<provider/model>` — and only the implementation step runs as a headless `opencode run --agent implementor` (via the `implement-with-opencode` skill). Claude still claims, plans, runs `build-and-test`, reviews the result with its `code-reviewer` (a cross-model review), and closes the bead; test failures and review findings go back to OpenCode as fix rounds. Requires `opencode` on `PATH` and a repo bootstrapped or updated with `--with-opencode`. OpenCode reads the skills from `.claude/skills/` and the instructions from `CLAUDE.md`, so nothing else is duplicated.
+**Claude Code, OpenCode and omp.** All three read the skills from `.claude/skills/`. Invoke a skill with `/executor-task <bead-id>` in Claude Code, `/skill:executor-task <bead-id>` in omp, or by naming it in OpenCode ("run the executor-task skill for <bead-id>"). OpenCode and omp do not read `.claude/agents/`: scaffold with `--with-opencode` / `--with-omp` to install the shared agents converted for them (`.opencode/agents/`, `.omp/agents/`, generated from `agents/*.md` with each CLI's frontmatter and marked as generated; never edit the copies). Without the flags, the skills that dispatch an agent (`requesting-code-review`, `address-pr-comments`, `project-auditor`) have the CLI's general subagent read `.claude/agents/<name>.md` instead. On Windows, OpenCode's shell tool is PowerShell unless `"shell"` in `opencode.json` points at Git Bash (`"shell": "C:/Program Files/Git/bin/bash.exe"`); the epic skills need that POSIX shell.
+
+**Who runs each bead of an epic.** `executor-epic-sequential*` take only the epic id and pick the worker themselves:
+
+- **Inside [Herdr](https://herdr.dev):** the run opens a tab `<epic-id>-implementer` (cwd = the checkout or worktree) and asks you to start the agent you want there, with your own model, effort and flags (e.g. `claude --dangerously-skip-permissions`, `opencode --yolo`, `omp --yolo`), then to reply `done`. Every bead runs in that agent, cleared before each one, so you can watch it work. The tab stays open after the run and a later run of the same epic reuses it. There is no headless fallback inside Herdr (`run-bead-in-herdr`).
+- **Outside Herdr:** a fresh headless process of the CLI you invoked the skill from, per bead, with permissions bypassed: `claude -p`, `opencode run` or `omp -p` (`run-bead-headless-claude`, `-opencode`, `-omp`).
 
 Other useful skills you'll reach for:
 
@@ -129,7 +137,7 @@ Other useful skills you'll reach for:
 | `executor-task-worktree`        | Same as `executor-task` but runs in an isolated git worktree                               | When you need to run multiple beads in parallel without branch interference            |
 | `executor-epic-task`            | Same as `executor-task` but branches off (and PRs into) the bead's parent epic branch      | Epic delivered as one merge to main; each child bead ships as its own PR into the epic |
 | `executor-epic-task-worktree`   | Same as `executor-epic-task` but runs in an isolated git worktree                          | Epic flow + parallel beads + main tree must stay untouched                             |
-| `executor-epic-sequential`      | Runs **every** ready bead of one epic sequentially on a single `epic/<epic-bead-id>` branch — each bead in a fresh headless `claude -p` session (clean context per task); blocked beads are skipped; ends with one PR to the default branch | Deliver a whole epic unattended as one branch + one PR, instead of one bead at a time |
+| `executor-epic-sequential`      | Runs **every** ready bead of one epic sequentially on a single `epic/<epic-bead-id>` branch — each bead in a fresh worker session (a Herdr agent you start, or a headless run of your CLI); blocked beads are skipped; ends with one PR to the default branch | Deliver a whole epic unattended as one branch + one PR, instead of one bead at a time |
 | `executor-epic-sequential-worktree` | Same as `executor-epic-sequential` but runs in a sibling git worktree (`../<repo>-epic-<epic-bead-id>`) and never touches the main checkout; leaves the worktree in place for the PR's follow-up | Deliver a whole epic unattended as one branch + one PR while the main tree keeps its in-flight work |
 | `executor-rework-in-place`      | Re-execute a reopened bead on the current feature branch; push commits into the existing open PR (no new branch, no new PR); requires `bead_id` | Bead was already executed but the task was wrong — user reopened the bead, updated its requirements, and wants to amend the existing PR |
 | `beads-close`                   | Closes the bead, creates follow-ups, commits `.beads/` state                               | Final step of an executor cycle                                                        |
@@ -144,7 +152,10 @@ Other useful skills you'll reach for:
 | `systematic-debugging`           | Structured root-cause investigation before proposing a fix                                    | Any bug, test failure, or unexpected behavior                            |
 | `verification-before-completion` | Forces real verification commands before claiming "done"                                      | Before committing, opening a PR, or asserting success                    |
 | `build-and-test`                 | Runs the literal `## Verification` section of the current execution plan                      | After implementing changes; specialize per repo in stage 2               |
-| `implement-with-opencode`        | Runs an executor's implementation step as a headless OpenCode `implementor`, judging the round from git | When an executor was invoked with the `opencode` argument                |
+| `run-bead-in-herdr`              | Inside Herdr: sets up the tab `<epic-id>-implementer`, waits for the agent you start there, then clears, prompts and waits on it per bead | Picked by `executor-epic-sequential*` when the driver runs inside Herdr |
+| `run-bead-headless-claude`       | Runs one bead in a fresh `claude -p` (Opus 5.5, high effort, permissions bypassed)            | Picked by `executor-epic-sequential*` from Claude Code outside Herdr     |
+| `run-bead-headless-opencode`     | Runs one bead in a fresh `opencode run --yolo` on OpenCode's default model                   | Picked by `executor-epic-sequential*` from OpenCode outside Herdr        |
+| `run-bead-headless-omp`          | Runs one bead in a fresh `omp -p --yolo` on omp's default model                              | Picked by `executor-epic-sequential*` from omp outside Herdr             |
 
 </details>
 
@@ -222,9 +233,9 @@ One cross-platform command, three subcommands:
 
 | Purpose                          | Command                                                                       |
 | -------------------------------- | ----------------------------------------------------------------------------- |
-| Bootstrap a new downstream repo  | `agent-workflow-beads bootstrap [--with-screenshots] [--with-opencode] <repo> <prefix>` |
-| Refresh shared workflow surface  | `agent-workflow-beads update [--with-screenshots] [--with-opencode] <repo>`            |
-| Prerequisite check               | `agent-workflow-beads check [--with-opencode]`                                          |
+| Bootstrap a new downstream repo  | `agent-workflow-beads bootstrap [--with-screenshots] [--with-omp] [--with-opencode] <repo> <prefix>` |
+| Refresh shared workflow surface  | `agent-workflow-beads update [--with-screenshots] [--with-omp] [--with-opencode] <repo>`            |
+| Prerequisite check               | `agent-workflow-beads check [--with-omp] [--with-opencode]`                                          |
 
 Run `agent-workflow-beads --help` for the full usage, or `agent-workflow-beads --version` to see the installed version.
 

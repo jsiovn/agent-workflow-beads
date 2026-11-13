@@ -51,7 +51,7 @@ Claims one bead and delivers it.
 7. `requesting-code-review`
 8. `beads-close`
 
-Optional: pass `opencode` to any executor skill to have step 3 run as a headless OpenCode implementor (`implement-with-opencode`; needs `opencode` on `PATH` and `.opencode/agents/implementor.md` from `agent-workflow-beads update --with-opencode`). Build/test failures and Critical/Important review findings go back to the implementor as fix rounds; Claude keeps every other step.
+Invoke a skill with `/<name>` in Claude Code, `/skill:<name>` in omp, or by naming it in OpenCode. All three read the skills from `.claude/skills/`.
 
 Entry: a ready bead from `bd ready`.
 Exit: bead closed, code committed, follow-up beads created if needed.
@@ -70,7 +70,14 @@ To run an **entire epic unattended** on a single branch instead of one bead at a
 - **Whole epic, one branch, one PR (current checkout):** `executor-epic-sequential`
 - **Whole epic, one branch, one PR (isolated worktree, main tree untouched):** `executor-epic-sequential-worktree`
 
-It creates `epic/<epic-bead-id>` once, then executes every ready child bead in turn — each in a **fresh headless `claude -p` session**, so context never carries between tasks — committing each directly onto that branch, and finishes with a single PR (`epic/<epic-bead-id>` → default branch). A bead that fails or blocks is marked blocked and skipped (its dependents are skipped too) and the run continues. Prereqs: the target must be an epic and the `claude` CLI must be on `PATH`. The flow relies on fresh-session-safe beads, so run `validate-beads` on the epic first. Unattended runs use `--dangerously-skip-permissions` by default (auto-approves the workers' tool calls); each worker is separate token usage.
+It creates `epic/<epic-bead-id>` once, then executes every ready child bead in turn — each in a **fresh worker session**, so context never carries between tasks — committing each directly onto that branch, and finishes with a single PR (`epic/<epic-bead-id>` → default branch). A bead that fails or blocks is marked blocked and skipped (its dependents are skipped too) and the run continues. The flow relies on fresh-session-safe beads, so run `validate-beads` on the epic first.
+
+The worker is picked automatically; the skill takes only the epic id:
+
+- **Inside Herdr** (`run-bead-in-herdr`): the run opens a tab `<epic-id>-implementer` (cwd = the checkout or worktree) and asks you to start the coding agent you want there, Claude Code, OpenCode or omp, with your own model, effort and flags (for example `claude --dangerously-skip-permissions`, `opencode --yolo`, `omp --yolo`), then reply `done`. Every bead runs in that agent, cleared before each bead. The tab stays open after the run; a later run of the same epic reuses it. There is no headless fallback inside Herdr.
+- **Outside Herdr**: a headless run of the CLI you invoked the skill from, one fresh process per bead, permissions bypassed: `claude -p` (`run-bead-headless-claude`), `opencode run` (`run-bead-headless-opencode`) or `omp -p` (`run-bead-headless-omp`). Each is separate token usage.
+
+The epic skills need a POSIX shell (Git Bash on Windows). OpenCode on Windows runs PowerShell unless `"shell"` in `opencode.json` points at Git Bash's `bash.exe`.
 
 `executor-epic-sequential` switches the **main checkout** onto the epic branch, so it requires a clean working tree (no auto-stash). `executor-epic-sequential-worktree` does the same run inside a **sibling git worktree** (`../<repo>-epic-<epic-bead-id>`) and never touches the main tree — use it when the main checkout has in-flight work that must stay undisturbed. It leaves the worktree in place for the PR's review comments and CI fixes; remove it with `cleanup-worktree` once the PR lands.
 
