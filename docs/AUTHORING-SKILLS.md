@@ -16,10 +16,15 @@ seam instead of creating a parallel one.
 - [ ] **Pick the mode.** Planner or executor (see `SKILLS_RELATIONSHIPS.md` §1).
       A skill belongs to exactly one. If it would touch both, it's two skills.
 - [ ] **Decide the surface.** Shared (`skills/<name>/`, copied to `.claude/skills/`
-      on every run — OpenCode reads skills from there too), or stage-1 /
+      on every run — OpenCode and omp read skills from there too), or stage-1 /
       bootstrap-only (`templates/skills/<name>/`,
       copied once and preserved — used today for `build-and-test` and the
       opt-in `attach-web-screenshots`)?
+- [ ] **Stay CLI-neutral.** Skills run in Claude Code, OpenCode and omp. Name
+      tools by role ("the shell tool", "a general subagent"), not by one CLI's
+      tool name, and never rely on `.claude/agents/` without the fallback in
+      `requesting-code-review`. Shell snippets assume a POSIX shell (Git Bash on
+      Windows); a command the driver must run before that is checked uses Node.
 - [ ] **Pick the type.** Technique (concrete steps), Pattern (way of thinking),
       or Reference (lookup). Don't blend — a Technique with no steps is a Pattern
       mislabeled.
@@ -79,8 +84,7 @@ A change isn't done until it survives the full propagation cycle:
 
 - [ ] `agent-workflow-beads update` against a scratch downstream repo (use `npm link`
       from the template checkout to run your in-progress CLI changes).
-- [ ] Inspect what landed in `.claude/skills/` (and `.opencode/agents/` when
-      testing with `--with-opencode`).
+- [ ] Inspect what landed in `.claude/skills/`.
 - [ ] Confirm the refreshed files appear as ordinary tracked files in
       `git status` (committed, not gitignored).
 - [ ] If you removed a skill, confirm its old path is *gone* downstream.

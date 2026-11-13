@@ -4,8 +4,8 @@
 
 1. Install Node.js ≥18, `bd`, and `dolt` on the machine, then `npm install -g agent-workflow-beads`.
 2. Bootstrap the repo with the CLI. If the target path is empty, it initializes git first.
-   - `agent-workflow-beads bootstrap [--with-opencode] /path/to/repo <prefix>` (same command on macOS, Linux, and Windows)
-   - Claude Code is the primary AI and `.claude/` is always installed; pass `--with-opencode` to also install the OpenCode implementor agent (`.opencode/agents/implementor.md`) so executors can delegate implementation with the `opencode` argument.
+   - `agent-workflow-beads bootstrap /path/to/repo <prefix>` (same command on macOS, Linux, and Windows)
+   - Claude Code is the primary AI and `.claude/` is always installed. OpenCode and omp read the same `.claude/skills/`; nothing extra is installed for them. On Windows, point OpenCode's `"shell"` at Git Bash before running the epic skills from it.
 3. Verify:
    - `bd version`
    - `bd ready --json`

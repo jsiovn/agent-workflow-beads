@@ -65,9 +65,17 @@ agent-workflow-beads --version
 ## 5. Bootstrap a repo
 
 ```bash
-agent-workflow-beads bootstrap [--with-screenshots] [--with-opencode] /path/to/repo yourprefix
+agent-workflow-beads bootstrap [--with-screenshots] /path/to/repo yourprefix
 ```
 
 Bootstrap initializes git if needed, runs `bd init -p yourprefix --server --skip-agents --skip-hooks`,
-installs the Claude integration, and scaffolds the shared workflow files (plus the OpenCode
-implementor agent with `--with-opencode`; that option also needs `opencode` on `PATH`). For the full stage-1 then stage-2 adoption flow, see [SETUP-NEW-REPO.md](SETUP-NEW-REPO.md).
+installs the Claude integration, and scaffolds the shared workflow files. For the full stage-1 then stage-2 adoption flow, see [SETUP-NEW-REPO.md](SETUP-NEW-REPO.md).
+
+Claude Code, OpenCode and omp all read the scaffolded skills from `.claude/skills/`; invoke one with
+`/<name>` in Claude Code, `/skill:<name>` in omp, or by naming it in OpenCode. On Windows, OpenCode's
+shell tool is PowerShell by default; the epic skills need a POSIX shell, so point it at Git Bash in
+`opencode.json` (the project's or `~/.config/opencode/opencode.json`):
+
+```json
+{ "shell": "C:/Program Files/Git/bin/bash.exe" }
+```

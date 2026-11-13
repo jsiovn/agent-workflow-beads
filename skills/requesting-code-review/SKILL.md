@@ -42,6 +42,8 @@ HEAD_SHA=$(git rev-parse HEAD)
 
 Call the Task tool with `subagent_type: code-reviewer` and a prompt built from the template at `requesting-code-review/brief.md` (this file is shipped alongside the SKILL.md).
 
+**No `code-reviewer` agent type in this CLI?** OpenCode and omp do not read `.claude/agents/`, so they have no `code-reviewer` type. Then dispatch the CLI's general-purpose subagent (OpenCode's `general` through its subagent tool, omp's `task` tool) with the same filled brief, prefixed by: "First read `.claude/agents/code-reviewer.md` and follow it as your standing instructions. You are read-only: never edit, stage, or commit files." Do not substitute any other built-in reviewer agent; the repo's checklist lives in that file.
+
 **Placeholders to fill in the prompt:**
 
 - `{WHAT_WAS_IMPLEMENTED}` — what you just built

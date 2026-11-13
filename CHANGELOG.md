@@ -6,31 +6,79 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [1.3.0] - 2026-11-13
 
-A Herdr runner for the whole-epic executors: each bead can run in a named
-interactive Claude agent in Herdr instead of a headless `claude -p` worker.
+The whole-epic executors pick their per-bead worker themselves, and the
+OpenCode implementor is gone. Inside Herdr, every bead runs in an agent you
+start in a tab the run creates; outside Herdr, a headless run of the CLI you
+invoked the skill from. Claude Code, OpenCode and omp are all supported as the
+driver and as the worker.
 
 ### Added
 
-- New shared skill `run-bead-in-herdr`: preflight (Herdr session, agent by
-  pane ID, `agent=claude`, idle, cwd equals the checkout), `/clear` sent
-  without `--wait` (it never enters `working`, so `--wait` reports
-  `agent_prompt_stalled`) and confirmed by a changed `agent_session` id,
-  the task prompt, a wait in chunks that fit a tool call, blocked dialogs
-  surfaced to the user, and interrupt + force-block on timeout. Worktree mode
-  starts a dedicated agent in a new tab whose cwd is the worktree and closes
-  only that tab at the end.
-- `executor-epic-sequential` and `executor-epic-sequential-worktree` accept
-  an optional runner argument: `herdr`, `herdr=<agent>`,
-  `--runner herdr [--agent <name>]` or `runner=herdr` (default agent
-  `implementer`). It combines with `opencode`. Without it, workers stay
-  headless `claude -p` sessions.
+- `executor-epic-sequential` and `executor-epic-sequential-worktree` pick
+  `<RUNNER>` in preflight from the environment, with a Node one-liner that works
+  in any shell: `HERDR_ENV=1` → `run-bead-in-herdr`; otherwise
+  `run-bead-headless-claude`, `-opencode` or `-omp` by `OMPCODE` / `OPENCODE`
+  (omp also sets `CLAUDECODE`, so `OMPCODE` is read first). The skills take only
+  the epic id.
+- Three runner skills, one bead each, no loop logic:
+  `run-bead-headless-claude` (`claude -p`, Opus 5.5 at high effort,
+  `--dangerously-skip-permissions`, as before), `run-bead-headless-opencode`
+  (`opencode run --standalone --yolo` from the checkout, stdin closed,
+  OpenCode's default model) and `run-bead-headless-omp` (`omp -p --yolo`, stdin
+  closed, omp's default model). Each states how its own driver waits for an
+  hour-long worker and reads only the last `RESULT:` line.
+- Epic preflight: a POSIX-shell gate (`timeout` must return 124; OpenCode on
+  Windows runs PowerShell unless its `shell` key points at Git Bash) and a
+  first-bead guard (the first bead still `open` after its worker stops the run
+  without blocking the bead: the runner is broken, not the bead).
+- `requesting-code-review` falls back to the CLI's general subagent, told to read
+  `.claude/agents/code-reviewer.md` first, when there is no `code-reviewer`
+  agent type (OpenCode, omp).
+- `cleanup-worktree`: if removal fails because the directory is in use, close the
+  Herdr tab whose cwd is the worktree and retry.
+- Docs: how to invoke a skill per CLI (`/name` in Claude Code, `/skill:name` in
+  omp, by name in OpenCode) and the OpenCode `"shell"` setting for Windows.
 
 ### Changed
 
-- The epic-sequential Iron Law and hard gate now read "a fresh session per
-  bead" (`claude -p`, or a confirmed `/clear` on the Herdr agent).
-- `implement-with-opencode`, the README, `docs/SKILLS_RELATIONSHIPS.md`,
-  `BEADS_WORKFLOW.md` and both managed snippets mention the Herdr runner.
+- `run-bead-in-herdr` is rewritten around one flow. Once per run it creates (or
+  reuses) the tab `<epic-id>-implementer` with the checkout or worktree as cwd,
+  asks the user to start Claude Code, OpenCode or omp there and to reply `done`,
+  then checks the agent's kind, status and cwd. Per bead it always clears the
+  agent with its kind's command (`/clear` for Claude Code, `/new` for OpenCode
+  and omp), sends the prompt from a file, confirms a new session id once the
+  turn is `working` (OpenCode reports it only then), waits in 9-minute chunks,
+  and on timeout sends the kind's interrupt keys (`esc`, or `esc esc` for
+  OpenCode, whose `ctrl+c` quits). The tab is left open at the end. Clear
+  commands, session timing and interrupt keys were observed live with Herdr
+  0.9.5, Claude Code 2.1, OpenCode 2.2.6 and omp 18.18.8.
+- The shared task prompt says where skills live (`.claude/skills/<name>/SKILL.md`)
+  and that nobody is watching (never ask, no background work), for every runner.
+- `writing-plans` proceeds without confirmation when invoked by any executor
+  skill or epic worker prompt.
+
+### Removed
+
+- The OpenCode implementor: the `implement-with-opencode` skill (added to
+  `LEGACY_SKILLS`, so `update` deletes it downstream), `templates/.opencode/`,
+  and the `opencode` argument of all seven executor skills. `--with-opencode` is
+  accepted but ignored with a warning. On `update`, a downstream's
+  `.opencode/agents/implementor.md` is deleted only when it still contains the
+  template marker; `.opencode/agents/` and `.opencode/` go only if empty.
+- The epic skills' `herdr` / `herdr=<agent>` / `--runner` arguments, the
+  user-named Herdr agent (`implementer`), `herdr agent start`, the worktree
+  variant's closing of its tab, and the 5400 s implementor timeout.
+
+### Migration
+
+- Run `agent-workflow-beads update <repo>` and commit the result: four
+  `run-bead-*` skills appear, `implement-with-opencode` and the scaffolded
+  `.opencode/agents/implementor.md` disappear.
+- Drop `opencode` / `herdr` from epic invocations; they are ignored. To have
+  OpenCode or omp implement the beads, start it in the Herdr worker tab, or run
+  the epic skill from it outside Herdr.
+- On Windows, set `"shell"` in `opencode.json` to Git Bash before driving an
+  epic from OpenCode.
 
 ## [1.2.0] - 2026-10-29
 

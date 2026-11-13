@@ -1,140 +1,129 @@
 ---
 name: run-bead-in-herdr
-description: 'Use when `executor-epic-sequential` or `executor-epic-sequential-worktree` was invoked with the Herdr runner argument (`herdr`, `herdr=<agent>`, `--runner herdr [--agent <name>]`, or `runner=herdr`). Replaces the per-bead headless `claude -p` worker with a named interactive Claude agent in a Herdr pane: `/clear` it, prompt it with the bead, wait, then read the outcome from Beads. The driver must be running inside Herdr (`HERDR_ENV=1`).'
+description: 'Use when `executor-epic-sequential` or `executor-epic-sequential-worktree` picked the runner `run-bead-in-herdr` in preflight (the driver runs inside Herdr, `HERDR_ENV=1`). Sets up one worker tab `<epic-id>-implementer` per run, waits for the user to start Claude Code, OpenCode or omp in it, then per bead clears that agent, sends the task prompt and waits. No headless fallback. The epic skill owns the loop and reads the outcome from Beads.'
 ---
 
 # Run Bead in Herdr
 
-Run each bead of an epic-sequential run in a **named interactive Claude agent inside Herdr** instead of a fresh headless `claude -p` process. The driver (the orchestrator session that invoked `executor-epic-sequential*`) keeps every other step: resolving the epic, the branch, the loop, the outcome check from `bd show`, and the single PR. This skill owns only the Herdr mechanics: preflight, `/clear`, prompt, wait, and cleanup.
+Inside Herdr, every bead of an epic run executes in **one interactive agent that the user starts** in a tab the run creates, `<epic-id>-implementer`. The user picks the CLI (Claude Code, OpenCode or omp), its model, effort and flags. The driver clears that agent before every bead, sends the task prompt, and waits. The driver (the session that invoked `executor-epic-sequential*`) keeps everything else: the epic, the branch, the loop, the outcome from `bd show`, and the PR.
 
-Why: a Herdr agent is a top-level interactive session the user can watch live, it can still dispatch the `code-reviewer` subagent, and it draws from the interactive subscription pool rather than the Agent SDK pool that headless `claude -p` uses.
+Why: the user can watch each bead live, the worker is a top-level session that can dispatch its own review subagent, and an interactive session bills like any other interactive session of that CLI.
 
 ## When this applies
 
-Only when the epic skill was invoked with the runner argument. Recognized forms (anywhere in the arguments):
-
-- bare `herdr`
-- `herdr=<agent>`
-- `--runner herdr`, optionally with `--agent <name>`
-- `runner=herdr`
-
-Record `<RUNNER>` (`headless` by default, `herdr` when requested) and `<HERDR_AGENT>` (default `implementer`). It combines with `opencode`: the Herdr agent becomes the worker and calls `implement-with-opencode` itself, exactly like a headless worker would. **No argument → the epic skill uses `claude -p`; this skill does not apply.**
+The epic skill's preflight printed `herdr <driver-kind>`. Inside Herdr this is the only runner: there is no headless fallback and no argument that selects another one.
 
 ## Conventions
 
-- Every Herdr command prints JSON (`{"result":…}` on success, `{"error":{"code":…}}` and exit 1 on failure). Parse it; never scrape the TUI.
-- **Target the pane ID, never the agent name.** `/clear` starts a new Claude session and drops the agent's name; only a user hook may restore it. Resolve `<PANE>` once in preflight and use it for every later command.
-- From Git Bash, prefix any command whose argument starts with `/` with `MSYS_NO_PATHCONV=1`, or MSYS rewrites `/clear` into a Windows path.
-- Normalize paths before comparing them: Herdr reports `D:\www\repo`, `git rev-parse --show-toplevel` prints `D:/www/repo`. Compare with slashes unified and, on Windows, case-insensitively.
-- A small reader for one pane's agent, used below (Node is already a prerequisite of the template):
+- Every Herdr command prints JSON (`{"result":…}`, or `{"error":{"code":…}}` with exit 1). Parse it; never scrape the TUI except for the one `RESULT:` line.
+- **Target the pane ID, never an agent name.** A clear can drop the name. Resolve `<PANE>` once and use it everywhere.
+- From Git Bash, prefix a command whose argument starts with `/` with `MSYS_NO_PATHCONV=1`, or MSYS rewrites `/clear` into a Windows path.
+- Compare paths normalized: slashes unified, trailing slash dropped, case-insensitive on Windows. Herdr reports `D:\www\repo` (a new tab's root pane may add a trailing `\`), git prints `D:/www/repo`.
+- Never use the driver's own pane (`$HERDR_PANE_ID`), and never use, prompt, clear or rename an agent in any other tab (the user's own `implementer` agent included).
+- Never type into the worker pane with `herdr pane run` or `send-text`: if an agent is already running there, the text becomes a prompt to it.
+- Reader for one pane's agent (Node is already a prerequisite of the template). `session` is an id, or a file path for omp, or `null` before the agent reports one:
 
   ```bash
-  herdr_agent() {  # usage: herdr_agent <pane-id>  →  "<session-id> <status> <cwd>"  or  "missing"
-    herdr agent list | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const a=JSON.parse(s).result.agents.find(x=>x.pane_id===process.argv[1]);console.log(a?[(a.agent_session&&a.agent_session.value)||"-",a.agent_status,a.cwd].join(" "):"missing")})' "$1"
+  herdr_agent() {  # usage: herdr_agent <pane-id>  →  one JSON line, or "missing"
+    herdr agent list | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const a=JSON.parse(s).result.agents.find(x=>x.pane_id===process.argv[1]);console.log(a?JSON.stringify({kind:a.agent,status:a.agent_status,session:(a.agent_session&&a.agent_session.value)||null,cwd:a.cwd}):"missing")})' "$1"
   }
   ```
 
-## Preflight — stop on any failure, never fall back to headless
+## Agent kinds
 
-The user chose Herdr, so a failed preflight stops the run. Do not silently switch to `claude -p`.
+Observed with Herdr 0.9.5, Claude Code 2.1, OpenCode 2.2.6 and omp 18.18.8:
 
-1. `HERDR_ENV` is `1` and `command -v herdr` succeeds. Otherwise stop: "Herdr runner requested but this session is not inside Herdr."
-2. Resolve the worker agent:
-   - **Main-checkout mode** (`executor-epic-sequential`; `<CHECKOUT>` = the repo root, already on `<EPIC_BRANCH>`): find the entry in `herdr agent list` whose `name` is `<HERDR_AGENT>`. Record its `pane_id` as `<PANE>`.
-   - **Worktree mode** (`executor-epic-sequential-worktree`; `<CHECKOUT>` = `<WORKTREE_PATH>`): create a dedicated agent, see _Worktree mode_ below. The user's own `<HERDR_AGENT>` is never used or touched in this mode.
-3. Check the agent: it exists, `agent` is `claude`, `agent_status` is `idle` or `done`, and its `cwd` equals `<CHECKOUT>` (normalized). A wrong cwd means the worker would load another checkout's skills and commit on another branch: stop and tell the user which cwd the agent has.
-4. Never use the driver's own pane as `<PANE>` (`$HERDR_PANE_ID`). A driver that `/clear`s itself ends the run.
-5. Tell the user once, before the first bead: the worker is an interactive agent they can watch in Herdr; it should run with permissions bypassed (or an allowlist) so it does not stop on approval prompts; any dialog it raises is brought back to the user, never answered by the driver.
+| `kind` | Suggested start command (user's choice) | Clear command | New session id appears | Interrupt keys |
+|---|---|---|---|---|
+| `claude` | `claude --dangerously-skip-permissions` | `/clear` | right after the clear | `esc` |
+| `opencode` | `opencode --yolo` | `/new` | only once the next prompt starts (before the first prompt the session is `null`) | `esc esc` (`ctrl+c` quits OpenCode) |
+| `omp` | `omp --yolo` | `/new` (`/clear` keeps the session id) | right after the clear | `esc` |
 
-## Worktree mode — a dedicated agent per run
+Any other `kind` is unsupported: say so and wait (setup step 4).
 
-The worktree has its own cwd, so the user's `<HERDR_AGENT>` (started in the main checkout) cannot serve it. Create one agent for the whole run:
+## Worker tab setup — once per run
 
-```bash
-herdr tab create --workspace "$HERDR_WORKSPACE_ID" --cwd "<WORKTREE_PATH>" \
-  --label "<HERDR_AGENT>-<EPIC_BEAD_ID>" --no-focus          # → result.tab.tab_id = <TAB>
-herdr pane list --workspace "$HERDR_WORKSPACE_ID"           # the pane whose tab_id is <TAB> = <PANE>
-herdr agent start "<HERDR_AGENT>-<EPIC_BEAD_ID>" --kind claude --pane "<PANE>" \
-  --timeout 60000 -- --dangerously-skip-permissions
-```
+Runs at the end of the epic skill's checkout setup, before "run unattended". `<CHECKOUT>` is the repo root (on `<EPIC_BRANCH>`) or the worktree.
 
-- Agent names must match `[a-z][a-z0-9_-]{0,31}`; lowercase the label and trim it if needed.
-- Record `<TAB>` as created by this run. It is the only tab the driver may close.
-- If `agent start` returns `agent_not_ready`, Claude is showing a startup dialog (usually the folder-trust prompt for the new worktree). Show the user `herdr agent read "<PANE>" --source recent-unwrapped --lines 40` and ask them to answer it in the pane; do not answer it yourself. Then `herdr agent wait "<PANE>" --until idle --timeout 120000` before continuing.
-- After `agent start` succeeds, run preflight check 3 against `<PANE>` (cwd must equal `<WORKTREE_PATH>`).
-- If any of the three commands fails, close `<TAB>` if it was created, and stop.
-- The new agent starts with an empty context, so the first bead may skip `/clear` (step 1 below still works if you run it).
+1. `<NAME>` = `<EPIC_BEAD_ID>-implementer`, made a valid Herdr name: lowercase, every character outside `a-z 0-9 _ -` becomes `-`, must start with a letter (prefix `e-` if not), at most 32 characters. A user hook may rename a Claude agent from its tab label after `/clear`, so the label must stay a valid agent name.
+2. Find or create the tab:
+   - `herdr tab list --workspace "$HERDR_WORKSPACE_ID"`: if a tab's `label` is `<NAME>`, reuse it as `<TAB>` (a later run of the same epic lands here).
+   - otherwise: `herdr tab create --workspace "$HERDR_WORKSPACE_ID" --cwd "<CHECKOUT>" --label "<NAME>" --no-focus` and record `.result.tab.tab_id` as `<TAB>`.
+   - `<PANE>` = the pane of `<TAB>` from `herdr pane list --workspace "$HERDR_WORKSPACE_ID"` (a new tab's `.result.root_pane.pane_id`). If the tab has several panes, use the one with a supported agent, else the first.
+3. If `herdr_agent <PANE>` already shows a supported kind, `idle` or `done`, with cwd = `<CHECKOUT>`, go to step 5 without asking. Otherwise ask the user, once, and **stop and wait for their reply**:
+
+   > The worker tab `<NAME>` is ready. Please start the coding agent you want for this epic in it, in `<CHECKOUT>`, for example `claude --dangerously-skip-permissions`, `opencode --yolo` or `omp --yolo` (any model, effort and flags are your choice; skipping permissions keeps it from stopping on approval prompts). Answer any startup dialog it shows, then reply `done`.
+
+   Never start the CLI, type into the pane, or answer its dialogs yourself.
+4. On `done`, check `herdr_agent <PANE>`: `kind` is `claude`, `opencode` or `omp`; `status` is `idle` or `done`; cwd equals `<CHECKOUT>`. If not, say exactly what was found (`missing`, the kind, `blocked` = a startup dialog such as the folder-trust prompt is still open, or the other cwd) and wait for another `done`. Never go headless, never start an agent yourself.
+5. Record `<KIND>`. Tell the user once: beads run in `<NAME>` (pane `<PANE>`, kind `<KIND>`), the agent is cleared before every bead, any dialog it raises comes back to them, and the tab stays open after the run.
 
 ## Per bead
 
-Run one bead at a time. `<WORKER_TIMEOUT_MS>` is `3600000` (one hour), or `5400000` when `<IMPLEMENTOR>`=`opencode`.
+`<WORKER_TIMEOUT>` comes from the epic skill in seconds (`3600`); the waits below use milliseconds.
 
-1. **Clear the agent.** Record `OLD_SESSION` from `herdr_agent <PANE>`, then send `/clear` **without `--wait`**:
-
-   ```bash
-   MSYS_NO_PATHCONV=1 herdr agent prompt "<PANE>" "/clear"
-   ```
-
-   Do not add `--wait`: `/clear` never enters the `working` state, so `--wait` returns `agent_prompt_stalled` even when the clear worked.
-
-2. **Confirm the clear.** Poll `herdr_agent <PANE>` every 2 s for up to about 30 s until the session id differs from `OLD_SESSION` and the status is `idle` or `done`.
-   - **No change within 30 s is a failure.** Do not prompt the bead into a context that may still hold the previous bead. Force-block the bead (`bd update <BEAD_ID> --status blocked` with "run-bead-in-herdr: /clear did not start a new session") and skip it.
-   - Two clear failures in a row mean the agent is unusable: stop the loop and finalize with what was delivered.
-   - `missing` means the pane or agent is gone: stop the loop and report.
-
-3. **Send the bead.** `<TASK_PROMPT>` is the epic skill's headless prompt **verbatim** (plus its `opencode` addendum when set), followed by:
-
-   > You are running inside Herdr with no one watching this pane. Never ask questions (no AskUserQuestion, no "should I…?"); if you are blocked, run `bd update <BEAD_ID> --status blocked` with a short note and stop. Do not run long work in the background; run commands in the foreground and wait for them.
+1. **Clear, always** (before the first bead too: the user may have used the agent). Record `OLD_SESSION` = `session` from `herdr_agent <PANE>`. Send `<KIND>`'s clear command **without `--wait`** (a clear never enters `working`, so `--wait` returns `agent_prompt_stalled`):
 
    ```bash
-   herdr agent prompt "<PANE>" "<TASK_PROMPT>" --wait --until working --until blocked --timeout 30000
+   MSYS_NO_PATHCONV=1 herdr agent prompt "<PANE>" "/clear"   # /new for opencode and omp
    ```
 
-   This only confirms the turn started. `agent_prompt_stalled` or `timeout` here → treat as a timeout (step 5).
+2. **Settle.** Poll `herdr_agent <PANE>` every 2 s for up to 10 s, until the status is `idle` or `done`. A changed session id here is fine; **no change is not yet a failure** (OpenCode only reports its new session once the next prompt starts). `missing` means the agent is gone: stop the loop and report.
 
-4. **Wait for the turn to end** in chunks that fit a tool call's time limit (Claude Code caps a foreground command at 10 minutes):
+3. **Send the bead** from the file, then confirm the turn started:
 
    ```bash
-   herdr agent wait "<PANE>" --timeout 540000     # matches idle, done or blocked
+   herdr agent prompt "<PANE>" "$(cat "<PROMPT_FILE>")" --wait --until working --until blocked --timeout 30000
    ```
 
-   Repeat while it returns `timeout` and the total wait is under `<WORKER_TIMEOUT_MS>`. Between chunks, print one line of progress (bead id, minutes elapsed), nothing more. A harness that can notify on a background command's exit may run one wait in the background instead.
+   - Once the status is `working`, `herdr_agent <PANE>`'s session **must differ from `OLD_SESSION`**. If it does not, the clear did not take: send `<KIND>`'s interrupt keys (`herdr agent send-keys "<PANE>" esc`, or `esc esc` for opencode), force-block the bead (`bd update <BEAD_ID> --status blocked` with "run-bead-in-herdr: clear did not start a new session"), skip it. Two such failures in a row: stop the loop and finalize with what was delivered.
+   - `agent_prompt_stalled` or `timeout`: treat as a timeout (step 5).
 
-5. **Handle the result.**
-   - `idle` or `done`: go to the outcome check (step 6).
-   - `blocked`: the agent is showing a dialog (a permission prompt, a question). The driver is the live orchestrator, so show the user `herdr agent read "<PANE>" --source recent-unwrapped --lines 60` and ask whether to answer the dialog themselves or skip the bead. **Never answer the dialog yourself.** If the user answers it, resume waiting (step 4). If they choose skip, do what a timeout does.
-   - Total wait reached `<WORKER_TIMEOUT_MS>`, or step 3 stalled: interrupt the agent with `herdr agent send-keys "<PANE>" esc`, then `herdr agent send-keys "<PANE>" ctrl+c`, force-block the bead ("run-bead-in-herdr: worker timed out"), and skip it. **Never re-send the prompt.**
-
-6. **Outcome.** The epic skill decides done vs blocked from `bd show <BEAD_ID> --json`, exactly as for a headless worker. For the summary only, read the worker's last `RESULT:` line:
+4. **Wait** in chunks that fit a tool call, with the tool call's own timeout set to 10 minutes:
 
    ```bash
-   herdr agent read "<PANE>" --source recent-unwrapped --lines 40
+   herdr agent wait "<PANE>" --timeout $((9 * 60 * 1000))   # 9 minutes; returns on idle, done or blocked
    ```
 
-   Keep only the last line that starts with `RESULT:`; never paste the rest of the pane into the driver's context. If the agent is idle, the bead is still `in_progress`, and there is no `RESULT:` line, the worker stopped early: force-block the bead ("run-bead-in-herdr: worker ended without closing the bead").
+   Repeat while it returns `timeout` and the total is under `<WORKER_TIMEOUT>` × 1000 ms. Between chunks print one progress line (bead id, minutes elapsed), nothing more.
 
-After the epic's PR is opened (or the run stops), in worktree mode close the tab this run created: `herdr tab close "<TAB>"`. In main-checkout mode leave `<HERDR_AGENT>` as it is.
+5. **Result.**
+   - `idle` or `done`: the epic skill checks `bd show`.
+   - `blocked` (a permission dialog, a question, or a session error): show the user `herdr agent read "<PANE>" --source recent-unwrapped --lines 60` and ask whether they answer it in the pane or skip the bead. **Never answer it yourself.** Answered → wait again (step 4). Skip → as a timeout.
+   - Timeout or stall: send `<KIND>`'s interrupt keys, force-block the bead ("run-bead-in-herdr: worker timed out"), skip it. **Never re-send the prompt.**
+
+6. **Summary line.** Read only the last result line (OpenCode draws a side panel, so cut at the first run of three spaces):
+
+   ```bash
+   herdr agent read "<PANE>" --source recent-unwrapped --lines 200 | grep -oE 'RESULT: (closed|blocked).*' | tail -1 | sed 's/   .*//'
+   ```
+
+   If the agent is idle, the bead is still `in_progress` and there is no `RESULT:` line, the worker stopped early: force-block the bead ("run-bead-in-herdr: worker ended without closing the bead").
+
+## End of run
+
+Leave `<TAB>` and its agent in place. The summary names `<NAME>`, `<PANE>` and how to close it: `herdr tab close <TAB>` (close it before removing a worktree with `cleanup-worktree`). The driver never closes a tab or pane.
 
 ## Hard rules
 
 <HARD-GATE>
-The driver NEVER implements bead work, in Herdr mode as in headless mode. The Herdr agent is the worker; the driver only sends `/clear`, sends the prompt, waits, and reads `bd show` plus one `RESULT:` line. Not a one-line bead, not when the agent looks stuck, not when only one bead is left.
+Inside Herdr the worker is the agent the user started in `<NAME>`. If there is no supported idle agent there after `done`, the driver waits for the user. It NEVER runs the bead headless, NEVER starts a CLI in the pane, and NEVER implements bead work in its own context: not a one-line bead, not when the user is slow to answer, not when only one bead is left.
 </HARD-GATE>
 
 <HARD-GATE>
-The driver NEVER answers the worker's blocked dialogs, permission prompts, or questions, and never types into its pane beyond `/clear`, the task prompt, and the `esc` / `ctrl+c` interrupt on timeout. A dialog goes to the live user.
+The driver NEVER answers the worker's dialogs, permission prompts or questions, and types into its pane nothing but the clear command, the task prompt, and the interrupt keys on timeout. A dialog goes to the user.
 </HARD-GATE>
 
-- One bead at a time. Never prompt the agent while it is working, and never re-send a prompt for the same bead.
-- Every command targets `<PANE>`, never the agent name.
-- Never kill the Herdr server, never close a pane or tab this run did not create, never `/clear` the driver's own pane.
-- A failed preflight stops the run. Never fall back to `claude -p` without the user saying so in this session.
-- Keep the driver thin: progress lines, `bd show`, and the `RESULT:` line only.
+- One bead at a time. Never prompt the agent while it is working; never re-send a prompt for the same bead.
+- Every command targets `<PANE>`. Never touch another tab's agent or the driver's own pane; never kill the Herdr server; never close a tab or pane.
+- Keep the driver thin: progress lines, `bd show`, and the one `RESULT:` line.
 
 ## Integration
 
-**Invoked by:** `executor-epic-sequential` (main-checkout mode) and `executor-epic-sequential-worktree` (worktree mode), only when `<RUNNER>`=`herdr`.
+**Invoked by:** `executor-epic-sequential` (`<CHECKOUT>` = repo root) and `executor-epic-sequential-worktree` (`<CHECKOUT>` = the worktree), when preflight printed `herdr …`.
 
-**Invokes:** nothing directly. The Herdr agent runs the same executor cycle a headless worker runs (`beads-claim` → `writing-plans` → impl → `build-and-test` → `verification-before-completion` → `requesting-code-review` → `beads-close`), and `implement-with-opencode` inside it when `<IMPLEMENTOR>`=`opencode`.
+**Invokes:** nothing. The worker agent runs the executor cycle from the task prompt (`beads-claim` → `writing-plans` → impl → `build-and-test` → `verification-before-completion` → `requesting-code-review` → `beads-close`).
 
-**Needs:** Herdr with the driver running in a Herdr pane (`HERDR_ENV=1`), `herdr` on `PATH`, Node on `PATH` for the reader above, and, in main-checkout mode, a Claude agent named `<HERDR_AGENT>` started in the repo root.
+**Needs:** the driver in a Herdr pane (`HERDR_ENV=1`, `HERDR_WORKSPACE_ID`), `herdr` and Node on `PATH`, and the user at hand to start the worker once per run.
+
+**Siblings:** `run-bead-headless-claude`, `run-bead-headless-opencode`, `run-bead-headless-omp`.

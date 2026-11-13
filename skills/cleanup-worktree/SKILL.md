@@ -57,6 +57,7 @@ For bulk cleanup of many already-landed branches and their attached worktrees in
 
    - if this fails because of leftover local changes the user already accepted, retry with `git worktree remove --force <WORKTREE_PATH>` — but only after explicit user confirmation in this conversation
    - never use `--force` preemptively
+   - if it fails because the directory is in use (on Windows: "Permission denied" / "Device or resource busy"), a terminal is probably still open in it: close the Herdr tab whose cwd is the worktree (for example the `<epic-id>-implementer` tab an epic run left open) and retry
 
 6. Prune stale worktree metadata:
 

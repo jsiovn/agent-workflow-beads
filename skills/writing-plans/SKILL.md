@@ -184,7 +184,7 @@ After saving and committing the plan:
 
 **"Plan complete and committed at `docs/plans/<filename>.md`. Ready to execute?"**
 
-- If this skill was invoked by `/executor-task` or `/executor-task-worktree`, proceed to implementation automatically — do not wait for confirmation.
+- If this skill was invoked by an executor skill or an epic worker prompt, proceed to implementation automatically — do not wait for confirmation.
 - Otherwise, wait for user confirmation before proceeding.
 
 **When proceeding:** Use subagents when they help, with code review (`requesting-code-review`) after each major task.
