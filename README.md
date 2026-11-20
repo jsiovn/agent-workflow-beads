@@ -226,7 +226,7 @@ For the internal "who calls whom" graph view of the skills, see [docs/SKILLS_REL
 
 ## Browse beads visually with bdtui
 
-![bdtui screenshot](https://raw.githubusercontent.com/jsiovn/bdtui/master/docs/images/bdtui-jul-03.png)
+![bdtui screenshot](https://raw.githubusercontent.com/jsiovn/bdtui/master/docs/images/bdtui-nov-04.png)
 
 [`bdtui`](https://www.npmjs.com/package/bdtui) is a terminal UI for browsing the Beads backlog — ready vs. blocked beads, dependencies, status, the lot. Install once:
 
