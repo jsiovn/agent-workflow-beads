@@ -1,6 +1,6 @@
 ---
 name: executor-epic-task
-description: 'Run a full executor cycle for one bead on a fresh feature branch off its parent epic branch (epic/<epic-bead-id>): stash any in-flight work, switch to the epic branch, pull, create feat/<bead-id>-<short-slug>, execute the bead end-to-end, then push and open a PR targeting the epic branch. Use when the user wants a single bead delivered as its own PR into an in-progress epic branch instead of main.'
+description: 'Run a full executor cycle for one bead on a fresh feature branch off its parent epic branch (epic/<epic-bead-id>): WIP-commit any in-flight work on the current branch, switch to the epic branch, pull, create feat/<bead-id>-<short-slug>, execute the bead end-to-end, then push and open a PR targeting the epic branch. Use when the user wants a single bead delivered as its own PR into an in-progress epic branch instead of main.'
 ---
 
 # Executor Epic Task
@@ -78,7 +78,7 @@ This is the preferred manual path when an epic has its own long-lived integratio
    git checkout -b <BRANCH_NAME>
    ```
 
-   If `<BRANCH_NAME>` already exists locally, stop and ask the user whether to reuse, rename, or delete it.
+   If `<BRANCH_NAME>` already exists locally, stop: the bead was started before. Tell the user to resume it on that branch with `beads-claim` _Re-entering a Bead_ (never delete it to start over), or to pick another name if the branch is unrelated.
 
 10. Run the executor cycle for `<BEAD_ID>` — **every step in order**:
     - `beads-claim`
@@ -92,15 +92,11 @@ This is the preferred manual path when an epic has its own long-lived integratio
 
 11. If separate work is discovered, create follow-up beads during execution or before close. Keep this branch scoped to `<BEAD_ID>` only.
 
-12. If a blocker appears, update the current bead, summarize the blocker, and stop **on the feature branch** — do not push or open a PR. The earlier WIP commit on `<PREV_BRANCH>` is intact and can be returned to with `git checkout <PREV_BRANCH>`.
+12. If a blocker appears, block the bead with the one safe form (`beads-close` _Rules_): `bd update <BEAD_ID> --status blocked --append-notes "Blocked: <one plain line>"`. Commit what is done, summarize the blocker, and stop **on the feature branch** — do not push or open a PR. Tell the user how to resume: `git checkout <BRANCH_NAME>`, then `beads-claim` _Re-entering a Bead_. The earlier WIP commit on `<PREV_BRANCH>` is intact and can be returned to with `git checkout <PREV_BRANCH>`.
 
-13. If build/test fails and the fix is still in scope, return to implementation and retry.
+13. If build/test fails and the fix is still in scope, return to implementation and retry. Review fixes take the same loop: fix → commit → `build-and-test` on the whole change → `verification-before-completion` (`requesting-code-review` step 3).
 
-14. After successful close, finalize the branch by following the **`finishing-a-development-branch`** skill:
-    - verify clean tree and commits ahead of `<EPIC_BRANCH>` (not main)
-    - `git push -u origin HEAD`
-    - `gh pr create --base <EPIC_BRANCH> --title "<conventional-commit title>" --body "..."` — the PR body must include both an `Epic: <EPIC_BEAD_ID>` line and a `Bead: <BEAD_ID>` reference line (e.g. `Bead: lexify-a8m`). The title follows conventional commits format (`type(scope): description`) with no bead id prefix.
-    - report the PR URL
+14. After successful close, finalize the branch by following the **`finishing-a-development-branch`** skill with `<BASE_BRANCH>` = `<EPIC_BRANCH>` (not main) and the trailer lines `Epic: <EPIC_BEAD_ID>` and `Bead: <BEAD_ID>`. It verifies the branch, pushes, writes the title and the body (built from the closeout note, verification evidence included) and opens the PR. Report the PR URL.
 
 15. Stop with a concise summary: bead id, epic id, `<EPIC_BRANCH>` (PR base), `<BRANCH_NAME>`, PR URL, and a one-line note if a WIP commit was left on `<PREV_BRANCH>` so the user knows where to return.
 
