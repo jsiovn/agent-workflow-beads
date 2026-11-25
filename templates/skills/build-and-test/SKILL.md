@@ -118,6 +118,17 @@ Do NOT claim success without evidence.
 
 If you notice the same build, launch, and smoke-test sequence repeating across beads, that is a signal to specialize this repo-local skill.
 
+A stage-2 skill has these sections, each with exact commands and the output that counts as success:
+
+- **Launch** — build and start what a change needs (commands, ports, env vars, working directory)
+- **Doctor** — prerequisite checks that fail fast with a fix hint (tool versions, running services, env vars, seeded data)
+- **Drive** — exercise the changed behavior the way a user or client does (HTTP calls, CLI runs, browser or device steps)
+- **Evidence** — what to capture and report for each check (command, exit code, output, log line or screenshot)
+- **Cleanup** — stop what Launch started and remove temporary state
+- **Feature map** — which repo paths map to which Drive checks, so a change list selects the right checks
+
+It keeps step 2's change-scope rule. The specialization is done only when the new skill has been executed end to end once on this repo.
+
 Typical stage-2 specialization examples:
 
 - web app: `npm run build`, `npm run preview`, HTTP smoke checks, browser inspection
