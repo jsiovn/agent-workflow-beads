@@ -104,10 +104,10 @@ def function(input):
 Run: `pytest tests/path/test.py::test_name -v`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Commit** (tick this task's finished boxes in the plan file first and commit it with the code)
 
 ```bash
-git add tests/path/test.py src/path/file.py
+git add tests/path/test.py src/path/file.py docs/plans/YYYY-MM-DD-<feature-name>.md
 git commit -m "feat: add specific feature"
 ```
 ````
