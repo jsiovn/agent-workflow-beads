@@ -138,7 +138,9 @@ The subagent edits files and returns a JSON summary (schema in its definition). 
 
 ### 4. Verify
 
-Run the repo's `build-and-test` skill (or the project's standard verification command). If verification fails, fix the regression — do not push broken fixes. If you cannot reconcile what the subagent did with the test failure, surface the diff to the user before continuing.
+**Change scope:** every file in `git diff --name-only <BASE>..HEAD` plus every path in `git status --porcelain`; never `git diff HEAD` alone, which is empty once the work is committed. `<BASE>` = `git merge-base HEAD origin/<branch this work merges into>` (the PR base: the default branch or `epic/<id>`), unless the task prompt, or the `Base-SHA:` note of the bead this session is executing, names a commit between that merge-base and HEAD: then that commit.
+
+Here the whole PR is the scope (no bead is being executed). Run the repo's `build-and-test` skill (or the project's standard verification command) and give it that file list. If verification fails, fix the regression — do not push broken fixes. If you cannot reconcile what the subagent did with the test failure, surface the diff to the user before continuing.
 
 ### 5. Commit
 

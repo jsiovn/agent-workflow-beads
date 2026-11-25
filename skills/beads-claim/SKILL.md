@@ -43,7 +43,12 @@ Do not invoke this skill when:
    ```bash
    bd update <id> --status in_progress
    ```
-7. Report the claimed bead id and title, then proceed to `writing-plans` for the execution plan.
+7. Resolve the base commit of this bead's change (read-only; nothing is written):
+
+   **Change scope:** every file in `git diff --name-only <BASE>..HEAD` plus every path in `git status --porcelain`; never `git diff HEAD` alone, which is empty once the work is committed. `<BASE>` = `git merge-base HEAD origin/<branch this work merges into>` (the PR base: the default branch or `epic/<id>`), unless the task prompt, or the `Base-SHA:` note of the bead this session is executing, names a commit between that merge-base and HEAD: then that commit.
+
+   The branch this work merges into is the one the executor named (`<DEFAULT_BRANCH>` or `<EPIC_BRANCH>`), else the default branch. With no `origin/<branch>` ref, use the local branch.
+8. Report the claimed bead id, title and `<BASE>` (short SHA), then proceed to `writing-plans` for the execution plan. Later steps (`build-and-test`, `verification-before-completion`, `requesting-code-review`) use the same `<BASE>`.
 
 ## Rules
 

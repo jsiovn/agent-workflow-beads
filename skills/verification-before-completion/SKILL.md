@@ -48,6 +48,7 @@ Skip any step = lying, not verifying
 | Regression test works | Red-green cycle verified        | Test passes once               |
 | Agent completed       | VCS diff shows changes          | Agent reports "success"        |
 | Requirements met      | Line-by-line checklist          | Tests passing                  |
+| Change verified       | Run covered the change scope    | "No changes detected, skipped" |
 
 ## Red Flags - STOP
 
@@ -137,6 +138,18 @@ From 24 failure memories:
 - Paraphrases and synonyms
 - Implications of success
 - ANY communication suggesting completion/correctness
+
+## Change Scope Gate
+
+Verification covers the whole change, not the last edit and not only what is still uncommitted.
+
+**Change scope:** every file in `git diff --name-only <BASE>..HEAD` plus every path in `git status --porcelain`; never `git diff HEAD` alone, which is empty once the work is committed. `<BASE>` = `git merge-base HEAD origin/<branch this work merges into>` (the PR base: the default branch or `epic/<id>`), unless the task prompt, or the `Base-SHA:` note of the bead this session is executing, names a commit between that merge-base and HEAD: then that commit.
+
+- The branch is the one the executor names, else the open PR's base (`gh pr view --json baseRefName`), else the default branch. With no `origin/<branch>` ref, use the local branch.
+- A named commit is "between" only when `git merge-base --is-ancestor <merge-base> <sha>` and `git merge-base --is-ancestor <sha> HEAD` both succeed. Anything else is stale (the branch was rebased since) and is ignored.
+- This gate assumes no live bead. Run from `address-pr-comments` or after `rebase-and-push`, the scope is the whole PR.
+- A `build-and-test` run that skipped or narrowed its checks because its own change list was empty proves nothing. Recompute the scope and run it again with that file list.
+- Any edit after the last passing run voids that run, a review fix included. Run again before claiming.
 
 ## Beads Runtime Gate
 

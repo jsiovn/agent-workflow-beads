@@ -190,3 +190,7 @@ After saving and committing the plan:
 **When proceeding:** Use subagents when they help, with code review (`requesting-code-review`) after each major task.
 
 **After implementation is complete:** Invoke `build-and-test` (read the repo-local skill — `.claude/skills/build-and-test/SKILL.md` — and follow it). The skill executes the verification contract from the plan and may be generic or repo-specific depending on the repo's maturity. If `build-and-test` fails, fix the implementation or tighten the plan and re-run it before moving to verification. Do NOT skip this step.
+
+**Change scope:** every file in `git diff --name-only <BASE>..HEAD` plus every path in `git status --porcelain`; never `git diff HEAD` alone, which is empty once the work is committed. `<BASE>` = `git merge-base HEAD origin/<branch this work merges into>` (the PR base: the default branch or `epic/<id>`), unless the task prompt, or the `Base-SHA:` note of the bead this session is executing, names a commit between that merge-base and HEAD: then that commit.
+
+Give `build-and-test` that file list yourself. An older repo-local `build-and-test` may still compute its own list from `git diff HEAD`, which is empty once your work is committed, and then skip validation.

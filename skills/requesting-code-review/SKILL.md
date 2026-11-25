@@ -31,12 +31,16 @@ The prompt template at `brief.md` (alongside this `SKILL.md`) is **only** the dy
 
 ## How to Request
 
-**1. Get git SHAs:**
+**1. Get the review range:**
+
+**Change scope:** every file in `git diff --name-only <BASE>..HEAD` plus every path in `git status --porcelain`; never `git diff HEAD` alone, which is empty once the work is committed. `<BASE>` = `git merge-base HEAD origin/<branch this work merges into>` (the PR base: the default branch or `epic/<id>`), unless the task prompt, or the `Base-SHA:` note of the bead this session is executing, names a commit between that merge-base and HEAD: then that commit.
 
 ```bash
-BASE_SHA=$(git rev-parse HEAD~1)  # or origin/main
+BASE_SHA=<BASE>
 HEAD_SHA=$(git rev-parse HEAD)
 ```
+
+The range is the whole change of this bead or PR, never the last commit alone: the plan is committed first and code lands in several commits.
 
 **2. Dispatch the `code-reviewer` subagent:**
 
