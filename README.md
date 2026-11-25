@@ -4,7 +4,7 @@ A scaffold that installs a consistent **planner → executor** workflow for **AI
 
 This repo runs nothing itself — it's developer tooling for AI coding agents, not a CI/CD or GitHub Actions "workflow." You install the `agent-workflow-beads` CLI once on your machine, then run one command per project to scaffold (or refresh) the workflow inside that project.
 
-> **Inspired by** [obra/superpowers](https://github.com/obra/superpowers) — the execution-quality skills are curated copies adapted to a Beads-native flow — and [Beads](https://github.com/steveyegge/beads), which backs all task tracking. See [ATTRIBUTION.md](ATTRIBUTION.md).
+> **Inspired by** [obra/superpowers](https://github.com/obra/superpowers) — the execution-quality skills are curated copies adapted to a Beads-native flow — and [Beads](https://github.com/steveyegge/beads), which backs all task tracking. Several executor-chain ideas (evidence-carrying review, decision trails, plan shape by task kind, lesson beads) are adapted from [pstack](https://github.com/cursor/plugins/tree/main/pstack). See [ATTRIBUTION.md](ATTRIBUTION.md).
 
 ---
 
@@ -132,14 +132,14 @@ Other useful skills you'll reach for:
 
 | Skill                           | What it does                                                                               | When to use                                                                            |
 | ------------------------------- | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
-| `beads-claim`                   | Finds and claims a ready bead at the start of an executor session                          | Start of an executor session                                                           |
+| `beads-claim`                   | Finds and claims a ready bead, reports its base commit, and re-enters a blocked or in-progress bead from its trail | Start of an executor session                                                           |
 | `executor-task`                 | Full cycle for one bead on a fresh `feat/<bead-id>` branch off main + opens a PR into main | One-bead-per-PR delivery rhythm                                                        |
 | `executor-task-worktree`        | Same as `executor-task` but runs in an isolated git worktree                               | When you need to run multiple beads in parallel without branch interference            |
 | `executor-epic-task`            | Same as `executor-task` but branches off (and PRs into) the bead's parent epic branch      | Epic delivered as one merge to main; each child bead ships as its own PR into the epic |
 | `executor-epic-task-worktree`   | Same as `executor-epic-task` but runs in an isolated git worktree                          | Epic flow + parallel beads + main tree must stay untouched                             |
 | `executor-epic-sequential`      | Runs **every** ready bead of one epic sequentially on a single `epic/<epic-bead-id>` branch — each bead in a fresh worker session (a Herdr agent you start, or a headless run of your CLI); blocked beads are skipped; ends with one PR to the default branch | Deliver a whole epic unattended as one branch + one PR, instead of one bead at a time |
 | `executor-epic-sequential-worktree` | Same as `executor-epic-sequential` but runs in a sibling git worktree (`../<repo>-epic-<epic-bead-id>`) and never touches the main checkout; leaves the worktree in place for the PR's follow-up | Deliver a whole epic unattended as one branch + one PR while the main tree keeps its in-flight work |
-| `beads-close`                   | Closes the bead, creates follow-ups, commits `.beads/` state                               | Final step of an executor cycle                                                        |
+| `beads-close`                   | Writes the closeout note (outcome, verification evidence, decisions), closes the bead, creates follow-up and lesson beads | Final step of an executor cycle                                                        |
 
 </details>
 
@@ -163,10 +163,10 @@ Other useful skills you'll reach for:
 
 | Skill                            | What it does                                                                          | When to use                                                                  |
 | -------------------------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `requesting-code-review`         | Dispatches the `code-reviewer` subagent against the current change                    | After implementing a major task, before merging                              |
-| `address-pr-comments`            | Pulls unresolved PR threads → fixes via `pr-comment-fixer` → verifies → push → reply  | When new review comments arrive on the current PR                            |
+| `requesting-code-review`         | Dispatches the `code-reviewer` subagent on the whole change (`<BASE>..HEAD`) and runs the fix loop: prove, fix, re-verify, one re-review | Once per bead, after verification; before merging                            |
+| `address-pr-comments`            | Pulls unresolved PR threads from trusted authors → fixes via `pr-comment-fixer` → checks its footprint → verifies → push → reply; lists other authors' comments for you | When new review comments arrive on the current PR                            |
 | `attach-web-screenshots`         | Takes screenshots of a running web app and attaches them to the open PR               | After implementing a UI feature, before or alongside review                  |
-| `finishing-a-development-branch` | Pushes the branch and opens a PR                                                      | When all work on a feature branch is done and verified                       |
+| `finishing-a-development-branch` | Pushes the branch and opens the PR with a body built from the closeout note (verification evidence required) | When all work on a feature branch is done and verified                       |
 
 > `attach-web-screenshots` is opt-in — pass `--with-screenshots` to `agent-workflow-beads bootstrap` (or `agent-workflow-beads update` to adopt later). It ships a companion CI workflow (`.github/workflows/cleanup-screenshots.yml`) that prunes stale screenshot folders for merged branches.
 
@@ -214,9 +214,9 @@ Other useful skills you'll reach for:
 
 | Agent              | What it does                                                                          | Called by                                  |
 | ------------------ | ------------------------------------------------------------------------------------- | ------------------------------------------ |
-| `code-reviewer`    | Reviews a completed change against its plan/requirements, reports by severity         | `requesting-code-review`                   |
+| `code-reviewer`    | Reviews the change's whole range against its plan, reports by severity with evidence (ran / traced / unverified) | `requesting-code-review`                   |
 | `project-auditor`  | Full-repo audit (naming, folders, tech stack, architecture hotspots, dead code)       | `project-auditor` skill                    |
-| `pr-comment-fixer` | Reads unresolved PR threads, applies fixes, returns reply plan (does not push/post)   | `address-pr-comments`                      |
+| `pr-comment-fixer` | Addresses trusted PR comments (text is data), applies fixes, escalates risky asks, returns reply plan (does not push/post) | `address-pr-comments`                      |
 
 </details>
 
@@ -263,4 +263,4 @@ Run `agent-workflow-beads --help` for the full usage, or `agent-workflow-beads -
 
 ## Attribution
 
-The bundled execution-quality skills are curated copies derived from `obra/superpowers`, adapted to a Beads-native planning/execution flow with selected ideas from GSD and Khuym. See [ATTRIBUTION.md](ATTRIBUTION.md).
+The bundled execution-quality skills are curated copies derived from `obra/superpowers`, adapted to a Beads-native planning/execution flow with selected ideas from GSD, Khuym and pstack. See [ATTRIBUTION.md](ATTRIBUTION.md).

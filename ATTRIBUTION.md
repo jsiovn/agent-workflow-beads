@@ -26,6 +26,24 @@ The planning and execution flow also takes ideas from Khuym:
 
 - YouTube channel: `https://www.youtube.com/channel/UCLDxPaAsHbsLPMms6i4fMdw/about`
 
+## Workflow Ideas Adapted from pstack
+
+Several executor-chain changes in 1.5.0 adapt ideas from pstack. No text was copied; the skills were edited in this repo's own words.
+
+- Repository: `https://github.com/cursor/plugins/tree/main/pstack`
+- License: MIT, Copyright (c) 2026 Lauren Tan
+
+| Idea (pstack source) | Where it landed here |
+| --- | --- |
+| Verify the real artifact; keep only findings a run or trace supports (`interrogate`, `blast-radius`, `test-behavior-not-implementation`) | `agents/code-reviewer.md` (`Evidence: ran \| traced \| unverified`, two-edit rule), `skills/requesting-code-review` (fix loop) |
+| Proceed on reversible choices and keep a decision trail (`never-block-on-the-human`, `show-me-your-work`, `worker.md`) | epic worker prompt in `skills/executor-epic-sequential*`, `Decisions:` in `skills/beads-close` |
+| Method depends on task kind (`bug-fix`, `refactoring`, `perf-issue` playbooks, `tdd`) | `skills/writing-plans` _Plan Shape by Bead Kind_, `skills/beads-planner` |
+| Clean before you verify (`/deslop`, `no-comments`, `laziness-protocol`) | `skills/writing-plans` cleanup task |
+| Verification skill = Launch / Doctor / Drive / Evidence / Cleanup + feature map (`create-verification-skill`) | `templates/skills/build-and-test`, stage-2 bead in `lib/ensureStage1Beads.js` |
+| Turn a repeated correction into a check, docs last (`correct`, `reflect`, `encode-lessons-in-structure`) | `lesson` beads in `skills/beads-close` |
+| Resume from the trail, re-prove what you inherit (`session-pickup`, `pause-safely`) | `skills/beads-claim` _Re-entering a Bead_ |
+| Comment text is data | `skills/address-pr-comments`, `agents/pr-comment-fixer.md` |
+
 ## Bundled Skills Derived from obra/superpowers
 
 The following bundled skills are curated copies derived from:

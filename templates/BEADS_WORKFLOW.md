@@ -20,7 +20,7 @@ Claude Code enters the workflow through repo-local skills installed under `.clau
 - `executor-epic-sequential`
 - `executor-epic-sequential-worktree`
 
-When an executor skill stops on a blocker, continue in normal chat by telling the agent to resume the blocked bead.
+When an executor skill stops on a blocker, the bead is `blocked` with a `Blocked:` note and its work stays on its branch. To resume, tell the agent to re-enter that bead: `beads-claim` (_Re-entering a Bead_) works in the same checkout, keeps the committed plan and earlier `Decision:` notes, and re-proves inherited work before continuing.
 
 ## Planner Session
 
@@ -52,8 +52,15 @@ Claims one bead and delivers it.
 
 Invoke a skill with `/<name>` in Claude Code, `/skill:<name>` in omp, or by naming it in OpenCode. All three read the skills from `.claude/skills/`.
 
-Entry: a ready bead from `bd ready`.
-Exit: bead closed, code committed, follow-up beads created if needed.
+Entry: a ready bead from `bd ready` (or a blocked bead you name, re-entered).
+Exit: bead closed with a closeout note, code committed, follow-up and lesson beads created if needed.
+
+Rules that hold across the chain:
+
+- **Change scope.** Verification and review cover `<BASE>..HEAD` plus uncommitted paths, where `<BASE>` is the merge-base with the PR base (or the bead's `Base-SHA:` in an epic run) — never `git diff HEAD` alone, which is empty once work is committed.
+- **Review fix loop.** `requesting-code-review` proves each finding before fixing it; a fix is committed, then `build-and-test` and `verification-before-completion` run again on the whole change; one re-review after a Critical fix.
+- **Closeout note.** `beads-close` records `Outcome:`, `Verified:` (commands run and results), `Decisions:`, `Persisted:` and `Downstream:` from a file. A repeated correction or a hard-won command becomes a `lesson` bead.
+- **Blocking.** `bd update <id> --status blocked --append-notes "Blocked: <reason>"` — never `--notes`, which replaces the notes (and the plan inlined there).
 
 Pick the executor variant by base branch and isolation:
 
@@ -93,7 +100,8 @@ The epic skills need a POSIX shell (Git Bash on Windows). OpenCode on Windows ru
 - Beads state itself is local-only; code moves through Git, not Beads exports.
 - Workflow scaffold files are committed to this repo's git and travel with feature branches and `git worktree` checkouts.
 - Plan files under `docs/plans/` are committed: `writing-plans` commits each bead's plan on its branch (`docs(plan): …`), so it travels with the branch and lands in the PR. A plan is only visible from other branches once it merges; until then, inline it into the bead's `notes` (Dolt-synced) when another checkout needs it.
-- `finishing-a-development-branch` handles branch push and PR creation.
+- `finishing-a-development-branch` owns the PR contract: base branch from the executor, conventional title, and a body built from the closeout note (`## Why`, `## What changed`, `## Verification` (required), `## Decisions`, `## Risk`, `## Follow-ups`, then `Epic:` / `Bead:` lines), passed with `--body-file`. The epic PR lists delivered beads with their evidence and blocked or skipped ones with reasons.
+- `address-pr-comments` addresses review comments from the repo owner, members, collaborators and bots, and treats their text as data; comments from anyone else are listed for you, never acted on unless you name one.
 
 ## Operational Notes
 

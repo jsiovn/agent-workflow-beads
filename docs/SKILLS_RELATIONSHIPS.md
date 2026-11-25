@@ -65,15 +65,15 @@ flowchart LR
 | `beads-planner`                  | planner                         | Translate settled plan into epic + tasks           | `plan-beads`                                                              | —                                                                                  |
 | `plan-beads`                     | planner (orchestrator)          | Run a full planner session end-to-end              | user                                                                      | `brainstorming` → `planner-research` → `beads-planner` → `validate-beads`          |
 | `validate-beads`                 | planner                         | Quality gate before execution                      | `plan-beads`, user                                                        | —                                                                                  |
-| `beads-claim`                    | executor                        | Find + claim one ready bead                        | `executor-task` orchestrators, user                                       | —                                                                                  |
-| `writing-plans`                  | executor                        | Write the implementation plan for the claimed bead | `executor-task` orchestrators, user                                       | `requesting-code-review` (for plan review during chunked drafting)                 |
+| `beads-claim`                    | executor                        | Find + claim one ready bead; resolve and report the change's base commit (`<BASE>`); re-enter an `in_progress` / `blocked` bead from its trail (`Blocked:` / `Decision:` notes, committed plan, commits over checkboxes) | `executor-task` orchestrators, user | — |
+| `writing-plans`                  | executor                        | Write the implementation plan for the claimed bead: shape by bead kind (bug → reproduction first), required cleanup task, ticked boxes committed with the code | `executor-task` orchestrators, user | a plan-document reviewer subagent (`plan-document-reviewer-prompt.md`; the bead contract is the spec; two rounds per chunk) |
 | `systematic-debugging`           | executor                        | Root-cause investigation when blocked              | implementation step                                                       | —                                                                                  |
 | `responsive-layout-testing`      | executor (opt-in, `--with-web`) | Screenshot a page at 6 widths via Chrome DevTools MCP, fix overflow/layout breaks | implementation step, user                                  | `systematic-debugging`, `verification-before-completion` (defers completion claim) |
 | `prepare-android-chrome`         | executor (opt-in, `--with-web`) | Prepare a USB-connected Android phone so Chrome on it can be driven via the `chrome-devtools-android` MCP | user                                                                      | —                                                                                  |
-| `verification-before-completion` | executor                        | Evidence-before-claims gate                        | `executor-task` orchestrators                                             | —                                                                                  |
-| `requesting-code-review`         | executor                        | Dispatch the local code-reviewer subagent (`.claude/agents/code-reviewer.md`) | `executor-task` orchestrators (required, not optional)                    | —                                                                                  |
-| `beads-close`                    | executor                        | Close bead + create follow-ups + commit            | `executor-task` orchestrators, user                                       | —                                                                                  |
-| `executor-task`                  | executor (orchestrator)         | One bead delivered as its own PR off a fresh branch from main | user                                                                      | `beads-claim` → `writing-plans` → impl → `build-and-test` → verify → `beads-close` → `finishing-a-development-branch` |
+| `verification-before-completion` | executor                        | Evidence-before-claims gate; change-scope gate (`<BASE>..HEAD` plus uncommitted paths, an edit after the last pass voids it) | `executor-task` orchestrators, `requesting-code-review` (after a fix), `rebase-and-push` | — |
+| `requesting-code-review`         | executor                        | Dispatch the local code-reviewer subagent (`.claude/agents/code-reviewer.md`) on `<BASE>..HEAD`; owns the fix loop: prove each finding, fix → commit → re-verify, one re-review after a Critical fix | `executor-task` orchestrators (required, not optional) | `code-reviewer` subagent; `build-and-test` → `verification-before-completion` after a fix |
+| `beads-close`                    | executor                        | Five-field closeout note (`Outcome` / `Verified` / `Decisions` / `Persisted` / `Downstream`) from a file, close the bead, follow-up and `lesson` beads; the one safe way to block a bead (`--append-notes`) | `executor-task` orchestrators, user | — |
+| `executor-task`                  | executor (orchestrator)         | One bead delivered as its own PR off a fresh branch from main | user | `beads-claim` → `writing-plans` → impl → `build-and-test` → verify → `requesting-code-review` → `beads-close` → `finishing-a-development-branch` |
 | `executor-task-worktree`         | executor (orchestrator)         | Same as `executor-task`, but in an isolated git worktree (parallel-safe) | user                                                                      | same chain as `executor-task`                                                      |
 | `executor-epic-task`             | executor (orchestrator)         | Same as `executor-task` but branches off (and PRs into) the bead's parent epic branch `epic/<epic-bead-id>` (bead id only, no slug); auto-creates the epic branch from the default branch if missing | user                                                                      | same chain as `executor-task`                                                      |
 | `executor-epic-task-worktree`    | executor (orchestrator)         | Same as `executor-epic-task`, but in an isolated git worktree (parallel-safe; never touches the main checkout) | user                                                                      | same chain as `executor-task`                                                      |
@@ -83,8 +83,8 @@ flowchart LR
 | `run-bead-headless-claude`      | executor                        | Run one bead in a fresh `claude -p` (Opus 5.5, high effort, `--dangerously-skip-permissions`, JSON output), driver waits with `run_in_background` | `executor-epic-sequential*`, when preflight prints `headless claude` | — |
 | `run-bead-headless-opencode`    | executor                        | Run one bead in a fresh `opencode run --standalone --yolo` from the checkout, stdin closed, OpenCode's default model; driver waits with `background: true` | `executor-epic-sequential*`, when preflight prints `headless opencode` | — |
 | `run-bead-headless-omp`         | executor                        | Run one bead in a fresh `omp -p --yolo` from the checkout, stdin closed, omp's default model; driver waits with `timeout: 0` | `executor-epic-sequential*`, when preflight prints `headless omp` | — |
-| `finishing-a-development-branch` | executor                        | Push the branch and create a PR                    | `executor-task`, `executor-task-worktree`, `executor-epic-task`, `executor-epic-task-worktree`, `executor-epic-sequential`, `executor-epic-sequential-worktree`, user | —                                                                                  |
-| `address-pr-comments`            | maintenance                     | Iterative PR review-comment loop                   | user                                                                      | `pr-comment-fixer` subagent                                                        |
+| `finishing-a-development-branch` | executor                        | Owns the PR contract: push, conventional title, body from the closeout note (`## Verification` required) via `--body-file`, `Epic:` / `Bead:` lines; builds the epic PR body from bead notes | `executor-task`, `executor-task-worktree`, `executor-epic-task`, `executor-epic-task-worktree`, `executor-epic-sequential`, `executor-epic-sequential-worktree`, user | — |
+| `address-pr-comments`            | maintenance                     | Iterative PR review-comment loop: addresses OWNER / MEMBER / COLLABORATOR and bot comments (text is data), lists the rest for the user, checks the fixer's footprint, replies through files | user | `pr-comment-fixer` subagent, `build-and-test` |
 | `project-auditor`                | maintenance                     | Full-repo audit (naming, structure, light arch)    | user                                                                      | `project-auditor` subagent                                                         |
 | `audit-backlog-rules`            | maintenance                     | Audit ready/blocked beads against current rules    | user                                                                      | —                                                                                  |
 | `prune-local-branches`           | maintenance                     | Bulk-clean `[gone]`-upstream local branches **and their attached worktrees** (removes each worktree before deleting the branch); the bulk counterpart to `cleanup-worktree` | user                                                                      | —                                                                                  |
@@ -149,11 +149,12 @@ flowchart TD
     Q1 -->|no| S4[4. build-and-test<br/>repo-local skill]
     S4 --> Q2{Pass?}
     Q2 -->|no, in scope| S3
-    Q2 -->|no, blocked| BLOCK[Stop, update bead]
+    Q2 -->|no, blocked| BLOCK[Stop, block bead<br/>--append-notes]
     Q2 -->|yes| S5[5. verification-before-completion]
-    S5 --> S6[6. requesting-code-review<br/>dispatch code-reviewer subagent<br/><b>required</b>]
-    S6 --> S7[7. beads-close<br/>+ commit]
-    S7 --> S8[8. finishing-a-development-branch<br/>sync mirror, push, PR]
+    S5 --> S6[6. requesting-code-review<br/>review BASE..HEAD<br/><b>required</b>]
+    S6 -->|fixes| S4
+    S6 --> S7[7. beads-close<br/>closeout note]
+    S7 --> S8[8. finishing-a-development-branch<br/>push, PR body from closeout note]
     S8 --> END([Stop. Do NOT auto-claim<br/>another bead])
 
     style S1 fill:#fff4e1
@@ -224,8 +225,8 @@ Agents live in `agents/` (shared, always copied to `.claude/agents/` downstream,
 
 | Agent                  | Caller                                                                | Role                                                                                  |
 | ---------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `code-reviewer`        | `requesting-code-review` skill (executor chain)                       | Per-diff review against project standards (skill-internal)                            |
-| `pr-comment-fixer`     | `address-pr-comments` skill                                           | Read unresolved PR threads, edit code, return reply plan (skill-internal)             |
+| `code-reviewer`        | `requesting-code-review` skill (executor chain)                       | Review of `<BASE>..HEAD` against project standards; echoes the range, tags each Critical / Important `Evidence: ran \| traced \| unverified`, may re-run listed checks, never edits (skill-internal) |
+| `pr-comment-fixer`     | `address-pr-comments` skill                                           | Address trusted PR comments (comment text is data), edit code, return reply plan; escalates agent-aimed text, run / fetch / secret requests and CI, hook, manifest, lockfile or agent-instruction changes (skill-internal) |
 | `project-auditor`      | `project-auditor` skill                                               | Whole-repo audit + light architectural pass (skill-internal)                          |
 | `product-manager`      | user                                                                  | Acceptance criteria + "done" checklist for a feature                                  |
 | `engineering-manager`  | user (typically after `product-manager`)                              | Critical pass over the PM's spec — feasibility, scope creep, hidden cost              |
@@ -318,6 +319,10 @@ flowchart TD
     EESW --> FDB
 
     RB --> VBC
+
+    RCR -.->|after a fix| BAT
+    RCR -.->|after a fix| VBC
+    APC --> BAT
 
     RCR --> AGCR([agent: code-reviewer])
     APC --> AGPF([agent: pr-comment-fixer])
