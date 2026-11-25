@@ -76,7 +76,7 @@ Runs at the end of the epic skill's checkout setup, before "run unattended". `<C
    herdr agent prompt "<PANE>" "$(cat "<PROMPT_FILE>")" --wait --until working --until blocked --timeout 30000
    ```
 
-   - Once the status is `working`, `herdr_agent <PANE>`'s session **must differ from `OLD_SESSION`**. If it does not, the clear did not take: send `<KIND>`'s interrupt keys (`herdr agent send-keys "<PANE>" esc`, or `esc esc` for opencode), force-block the bead (`bd update <BEAD_ID> --status blocked` with "run-bead-in-herdr: clear did not start a new session"), skip it. Two such failures in a row: stop the loop and finalize with what was delivered.
+   - Once the status is `working`, `herdr_agent <PANE>`'s session **must differ from `OLD_SESSION`**. If it does not, the clear did not take: send `<KIND>`'s interrupt keys (`herdr agent send-keys "<PANE>" esc`, or `esc esc` for opencode), force-block the bead (`bd update <BEAD_ID> --status blocked --append-notes "Blocked: run-bead-in-herdr: clear did not start a new session"`), skip it. Two such failures in a row: stop the loop and finalize with what was delivered.
    - `agent_prompt_stalled` or `timeout`: treat as a timeout (step 5).
 
 4. **Wait** in chunks that fit a tool call, with the tool call's own timeout set to 10 minutes:
@@ -90,7 +90,7 @@ Runs at the end of the epic skill's checkout setup, before "run unattended". `<C
 5. **Result.**
    - `idle` or `done`: the epic skill checks `bd show`.
    - `blocked` (a permission dialog, a question, or a session error): show the user `herdr agent read "<PANE>" --source recent-unwrapped --lines 60` and ask whether they answer it in the pane or skip the bead. **Never answer it yourself.** Answered → wait again (step 4). Skip → as a timeout.
-   - Timeout or stall: send `<KIND>`'s interrupt keys, force-block the bead ("run-bead-in-herdr: worker timed out"), skip it. **Never re-send the prompt.**
+   - Timeout or stall: send `<KIND>`'s interrupt keys, force-block the bead (`bd update <BEAD_ID> --status blocked --append-notes "Blocked: run-bead-in-herdr: worker timed out"`), skip it. **Never re-send the prompt.**
 
 6. **Summary line.** Read only the last result line (OpenCode draws a side panel, so cut at the first run of three spaces):
 
@@ -98,7 +98,7 @@ Runs at the end of the epic skill's checkout setup, before "run unattended". `<C
    herdr agent read "<PANE>" --source recent-unwrapped --lines 200 | grep -oE 'RESULT: (closed|blocked) .*' | tail -1 | sed 's/   .*//'
    ```
 
-   If the agent is idle, the bead is still `in_progress` and there is no `RESULT:` line, the worker stopped early: force-block the bead ("run-bead-in-herdr: worker ended without closing the bead").
+   If the agent is idle, the bead is still `in_progress` and there is no `RESULT:` line, the worker stopped early: force-block the bead (`bd update <BEAD_ID> --status blocked --append-notes "Blocked: run-bead-in-herdr: worker ended without closing the bead"`). Never the `--notes` flag: it replaces the notes.
 
 ## End of run
 
