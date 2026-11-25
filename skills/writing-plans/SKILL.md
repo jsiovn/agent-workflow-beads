@@ -50,6 +50,19 @@ This structure informs the task decomposition. Each task should produce self-con
 - "Run the tests and make sure they pass" - step
 - "Commit" - step
 
+## Plan Shape by Bead Kind
+
+The default task shape (failing test → minimal code → pass → commit) fits new behavior. Read the bead's type and intent first: some kinds need a different first task.
+
+| Bead kind | Plan shape |
+|---|---|
+| `bug` | Task 1 reproduces the bug on the real surface (the failing command, request or UI step) and pastes the failing output into the plan. The regression test and the fix land in **one** commit, after a red-green check (the test fails without the fix, passes with it). `## Verification` re-runs the original reproduction. An "obvious" fix still starts with the reproduction. |
+| Behavior-preserving change (refactor, rename, move, dependency swap) — judged from the bead's intent, never from its type: the stage-2 and `lesson` beads are `chore` and exist to change behavior | Task 1 pins current behavior: run the existing tests, or add characterization tests, and record the output. No behavior change in the same bead; one you find becomes a follow-up bead. |
+| Performance | Task 1 records a baseline: the exact command, several runs, the numbers. `## Verification` re-runs the same command and compares. |
+| No cheap behavior-level test exists | Use the closest executable check (a CLI run, an HTTP call, a script) and state in the plan which check stands in and why. Never a mock-only test. |
+
+Never commit a failing test on its own: on a shared epic branch a red commit breaks every later bead if this one is blocked in between.
+
 ## Plan Document Header
 
 **Every plan MUST start with this header:**
@@ -112,6 +125,20 @@ git commit -m "feat: add specific feature"
 ```
 ````
 
+## Cleanup Task (REQUIRED)
+
+The last task, right before `## Verification`, is always:
+
+```markdown
+### Task N: Clean up the diff
+
+- [ ] **Step 1:** Re-read `git diff <BASE>..HEAD` in full.
+- [ ] **Step 2:** Remove narration comments, debug output, dead or commented-out code, abstractions / guards / compat shims nobody asked for, and edits unrelated to this bead.
+- [ ] **Step 3:** Tick these boxes and commit (`git commit -m "refactor: clean up <BEAD_ID> diff"`). Nothing to remove → tick and write "clean" next to Step 2.
+```
+
+It runs before verification, so `build-and-test` proves the cleaned code, not the draft.
+
 ## Verification Section (REQUIRED)
 
 Every plan MUST end with a `## Verification` section that defines how to test the changes against the live system. This section is what `build-and-test` will execute after implementation.
@@ -169,12 +196,10 @@ If you notice the same verification sequence repeating across multiple beads, th
 After completing each chunk of the plan:
 
 1. Dispatch a plan-document-reviewer subagent (see `plan-document-reviewer-prompt.md`) with precisely crafted review context - never your session history.
-   - Provide: chunk content, path to spec document
-2. If issues are found:
-   - Fix the issues in the chunk
-   - Re-dispatch reviewer for that chunk
-   - Repeat until approved
-3. If approved: proceed to next chunk (or execution handoff if last chunk)
+   - Provide: the chunk content and the bead contract pasted in (`bd show <id> --json`: title, type, description, `Read:` / `Files:` / `Verify:` lines). The bead is the spec; there is no separate spec document.
+2. If issues are found: fix them in the chunk and dispatch again for that chunk, with the round number.
+3. **At most two review rounds per chunk.** After round 2, record every issue still open under `## Open Review Points` in the plan (the issue and why you proceed anyway), commit, and move on. Never start a third round.
+4. If approved: proceed to next chunk (or execution handoff if last chunk)
 
 **Chunk boundaries:** Use `## Chunk N: <name>` headings to delimit chunks. Each chunk should be <=1000 lines and logically self-contained.
 
@@ -187,7 +212,7 @@ After saving and committing the plan:
 - If this skill was invoked by an executor skill or an epic worker prompt, proceed to implementation automatically — do not wait for confirmation.
 - Otherwise, wait for user confirmation before proceeding.
 
-**When proceeding:** Use subagents when they help, with code review (`requesting-code-review`) after each major task.
+**When proceeding:** Use subagents when they help. Code review (`requesting-code-review`) is required once per bead, after `verification-before-completion`, on the whole change.
 
 **After implementation is complete:** Invoke `build-and-test` (read the repo-local skill — `.claude/skills/build-and-test/SKILL.md` — and follow it). The skill executes the verification contract from the plan and may be generic or repo-specific depending on the repo's maturity. If `build-and-test` fails, fix the implementation or tighten the plan and re-run it before moving to verification. Do NOT skip this step.
 

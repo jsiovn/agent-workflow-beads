@@ -2,25 +2,30 @@
 
 Use this template when dispatching a plan document reviewer subagent.
 
-**Purpose:** Verify the plan chunk is complete, matches the spec, and has proper task decomposition.
+**Purpose:** Verify the plan chunk is complete, matches the bead contract, and has proper task decomposition.
 
-**Dispatch after:** Each plan chunk is written
+**Dispatch after:** Each plan chunk is written. At most two rounds per chunk (see `writing-plans` _Plan Review Loop_).
+
+Dispatch a general subagent with your CLI's subagent tool (Claude Code: Task tool; OpenCode: `subagent` tool; omp: `task` tool) and this prompt:
 
 ```
-Task tool (general-purpose):
-  description: "Review plan chunk N"
-  prompt: |
+description: "Review plan chunk N, round R of 2"
+prompt: |
     You are a plan document reviewer. Verify this plan chunk is complete and ready for implementation.
 
     **Plan chunk to review:** [PLAN_FILE_PATH] - Chunk N only
-    **Spec for reference:** [SPEC_FILE_PATH]
+    **Review round:** R of 2
+
+    **Bead contract (this is the spec):**
+    [BEAD CONTRACT: id, type, title, description, Read: / Inputs: / Files: / Verify: lines]
 
     ## What to Check
 
     | Category | What to Look For |
     |----------|------------------|
     | Completeness | TODOs, placeholders, incomplete tasks, missing steps |
-    | Spec Alignment | Chunk covers relevant spec requirements, no scope creep |
+    | Bead Alignment | Chunk covers what the bead contract asks for, touches only its `Files:` scope, and its `## Verification` runs the bead's `Verify:` checks; no scope creep |
+    | Plan Shape | Matches the bead kind: a `bug` starts with a reproduction on the real surface and commits test and fix together; a behavior-preserving change pins behavior first; performance work records a baseline; no mock-only tests; a cleanup task comes last before `## Verification` |
     | Task Decomposition | Tasks atomic, clear boundaries, steps actionable |
     | File Structure | Files have clear single responsibilities, split by responsibility not layer |
     | File Size | Would any new or modified file likely grow large enough to be hard to reason about as a whole? |
