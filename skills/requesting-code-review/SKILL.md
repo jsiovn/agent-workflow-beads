@@ -17,21 +17,13 @@ The prompt template at `brief.md` (alongside this `SKILL.md`) is **only** the dy
 
 ## When to Request Review
 
-**Mandatory:**
+**Mandatory:** once per bead, after `verification-before-completion` and before `beads-close`; before merge for work that is not a bead.
 
-- After each task in subagent-driven development
-- After completing a major feature
-- Before merge to main
-
-**Optional but valuable:**
-
-- When stuck (fresh perspective)
-- Before refactoring (baseline check)
-- After fixing a complex bug
+**Optional but valuable:** when stuck (fresh perspective), before a refactor (baseline check).
 
 ## How to Request
 
-**1. Get the review range:**
+**1. Commit, then get the review range.** The reviewer reads commits, so commit everything first: `git status --porcelain` must print nothing.
 
 **Change scope:** every file in `git diff --name-only <BASE>..HEAD` plus every path in `git status --porcelain`; never `git diff HEAD` alone, which is empty once the work is committed. `<BASE>` = `git merge-base HEAD origin/<branch this work merges into>` (the PR base: the default branch or `epic/<id>`), unless the task prompt, or the `Base-SHA:` note of the bead this session is executing, names a commit between that merge-base and HEAD: then that commit.
 
@@ -40,7 +32,7 @@ BASE_SHA=<BASE>
 HEAD_SHA=$(git rev-parse HEAD)
 ```
 
-The range is the whole change of this bead or PR, never the last commit alone: the plan is committed first and code lands in several commits.
+The range is the whole change of this bead or PR, never the last commit alone: the plan is committed first and code lands in several commits. Sanity-check it with `git diff --stat <BASE_SHA>..<HEAD_SHA>`: empty, or only the plan file, means the range is wrong. Fix it before dispatching.
 
 **2. Dispatch the `code-reviewer` subagent:**
 
@@ -53,63 +45,22 @@ Dispatch the `code-reviewer` agent with your CLI's subagent tool (Claude Code: T
 - `{BASE_SHA}` — starting commit
 - `{HEAD_SHA}` — ending commit
 - `{DESCRIPTION}` — brief summary
+- `{VERIFY_COMMANDS}` — the plan's `## Verification` commands the reviewer may re-run (short, existing checks only), or `none`
 
-The subagent will run `git diff` itself, read the changed files, and return a structured review (Strengths / Critical / Important / Minor / Assessment). It is read-only — it cannot modify code.
+The subagent will run `git diff` itself, read the changed files, and return a structured review that opens with `### Reviewed` (the range it diffed, uncommitted paths it did not review, checks it ran) and tags every Critical / Important finding `Evidence: ran | traced | unverified`. It never edits code; it may re-run the listed checks.
 
 The reviewer always grounds itself in the repo's layered `CLAUDE.md` conventions (defined in the agent definition, noted here so callers know to expect it): for every changed file it reads the nearest `CLAUDE.md` walking up from the file's directory (e.g. `apps/web/CLAUDE.md` for web changes, `packages/utils/CLAUDE.md` for utils changes) plus the root `CLAUDE.md`, and judges the diff against those rules — including the root comment-discipline convention — not generic best practices.
 
-**3. Act on feedback:**
+**3. Act on the review — the fix loop:**
 
-- Fix Critical issues immediately
-- Fix Important issues before proceeding
-- Note Minor issues for later
-- Push back if the reviewer is wrong (with reasoning)
+1. **Check the range.** The review must echo `<BASE_SHA>..<HEAD_SHA>` under `### Reviewed`. A different range, or a reviewer that stopped on a plan-only range, means the review covers the wrong change: fix the range and dispatch again.
+2. **Check the tree.** `git status --porcelain` must still print nothing (the reviewer may have run checks). Build output those checks produced is removed; any other change stops here: tell the user, or in an unattended run block the bead.
+3. **Prove each Critical and Important finding before changing code.** Reproduce it (a failing command or test) or trace it through the current code. A finding you refute is not fixed: record it with the reason for the closeout note's `Decisions:` line. `Evidence: unverified` findings get the same check; never fix one blind.
+4. **Fix → commit → re-verify.** Commit the fixes, then run `build-and-test` again on the **whole** change (the change-scope file list, not just the fix) and `verification-before-completion`. A fix voids the earlier pass.
+5. **One re-review, only if a Critical was fixed.** Dispatch the reviewer once more on the fix range (`<HEAD_SHA before the fixes>..HEAD`). No further rounds.
+6. **A Critical still open after that** blocks the bead in an unattended run (`beads-close` _Rules_ has the one safe form) and goes to the user in an interactive one. Never close a bead over an open Critical.
 
-## Example
-
-```
-[Just completed Task 2: Add verification function]
-
-You: Let me request a code review before proceeding.
-
-BASE_SHA=$(git log --oneline | grep "Task 1" | head -1 | awk '{print $1}')
-HEAD_SHA=$(git rev-parse HEAD)
-
-[Dispatch code-reviewer subagent]
-  WHAT_WAS_IMPLEMENTED: Verification and repair functions for conversation index
-  PLAN_OR_REQUIREMENTS: Task 2 from docs/plans/2026-04-30-deployment.md
-  BASE_SHA: a7981ec
-  HEAD_SHA: 3df7661
-  DESCRIPTION: Added verifyIndex() and repairIndex() with 4 issue types
-
-[Subagent returns]:
-  Strengths: Clean architecture, real tests
-  Issues:
-    Important: Missing progress indicators
-    Minor: Magic number (100) for reporting interval
-  Assessment: Ready to proceed (with fixes)
-
-You: [Fix progress indicators]
-[Continue to Task 3]
-```
-
-## Integration with Workflows
-
-**Subagent-driven development:**
-
-- Review after EACH task
-- Catch issues before they compound
-- Fix before moving to next task
-
-**Executing plans:**
-
-- Review after each batch (3 tasks)
-- Get feedback, apply, continue
-
-**Ad-hoc development:**
-
-- Review before merge
-- Review when stuck
+Minor findings: fix them in the same loop if trivial, otherwise note them as a follow-up bead.
 
 ## Red Flags
 
@@ -117,13 +68,14 @@ You: [Fix progress indicators]
 
 - Skip review because "it's simple"
 - Ignore Critical issues
-- Proceed with unfixed Important issues
+- Proceed with an unproven fix or an unverified finding
+- Treat the earlier `build-and-test` pass as still valid after a fix
 - Argue with valid technical feedback
 
 **If reviewer wrong:**
 
 - Push back with technical reasoning
-- Show code/tests that prove it works
+- Show the command or trace that refutes the finding, and record it under `Decisions:`
 - Request clarification
 
 ## Files in this skill

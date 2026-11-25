@@ -19,11 +19,17 @@ Fill in every `{PLACEHOLDER}` below before dispatching.
 **Base:** {BASE_SHA}
 **Head:** {HEAD_SHA}
 
-Run your own `git diff --stat {BASE_SHA}..{HEAD_SHA}` and `git diff {BASE_SHA}..{HEAD_SHA}` to inspect the change. Read changed files in full when context matters.
+Run your own `git diff --stat {BASE_SHA}..{HEAD_SHA}` and `git diff {BASE_SHA}..{HEAD_SHA}` to inspect the change. Read changed files in full when context matters. Echo this exact range under `### Reviewed`; if it is empty or holds only the plan file, say so and stop.
+
+## Checks You May Run
+
+{VERIFY_COMMANDS}
+
+Only these, only while `git rev-parse HEAD` equals {HEAD_SHA}, and none that installs, starts a service or edits files.
 
 ## Notes for the Reviewer
 
 - Follow the checklist and output format from your agent definition.
 - Compare the implementation against the plan/requirements above.
 - Sample the surrounding repo for conventions before judging the diff.
-- Return a structured review: Strengths / Critical / Important / Minor / Recommendations / Assessment.
+- Return a structured review: Reviewed / Strengths / Critical / Important / Minor / Recommendations / Assessment, with `Evidence: ran | traced | unverified` on every Critical and Important finding.
