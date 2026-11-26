@@ -38,15 +38,15 @@ If there is no plan file, or the plan has no usable `## Verification` section, s
 
 ### 2. Detect what changed
 
-```bash
-git diff --name-only HEAD
-```
+**Change scope:** every file in `git diff --name-only <BASE>..HEAD` plus every path in `git status --porcelain`; never `git diff HEAD` alone, which is empty once the work is committed. `<BASE>` = `git merge-base HEAD origin/<branch this work merges into>` (the PR base: the default branch or `epic/<id>`), unless the task prompt, or the `Base-SHA:` note of the bead this session is executing, names a commit between that merge-base and HEAD: then that commit.
 
-If nothing staged, also check unstaged:
-
-```bash
-git diff --name-only
-```
+- Use the caller's file list when given (`writing-plans`, `requesting-code-review` and `address-pr-comments` pass one). Otherwise compute it:
+  ```bash
+  git diff --name-only <BASE>..HEAD
+  git status --porcelain
+  ```
+- The branch is the one the executor names, else the open PR's base (`gh pr view --json baseRefName`), else the default branch. With no `origin/<branch>` ref, use the local branch.
+- A named commit is "between" only when `git merge-base --is-ancestor <merge-base> <sha>` and `git merge-base --is-ancestor <sha> HEAD` both succeed. Anything else is stale (the branch was rebased since) and is ignored.
 
 ### 3. Decide whether validation is required
 
@@ -54,6 +54,7 @@ Use the change list plus the verification plan to decide what to run.
 
 | Changed path | Action |
 |---|---|
+| Change list empty | The base is wrong: recompute it. Never skip validation because the list is empty |
 | Only docs, bead metadata, or notes changed | Skip runtime validation unless the plan explicitly requires it |
 | Tests changed without runtime behavior changes | Run the test commands from the plan |
 | App/runtime/build/deploy files changed | Run the full verification commands from the plan |
@@ -117,6 +118,17 @@ Do NOT claim success without evidence.
 
 If you notice the same build, launch, and smoke-test sequence repeating across beads, that is a signal to specialize this repo-local skill.
 
+A stage-2 skill has these sections, each with exact commands and the output that counts as success:
+
+- **Launch** — build and start what a change needs (commands, ports, env vars, working directory)
+- **Doctor** — prerequisite checks that fail fast with a fix hint (tool versions, running services, env vars, seeded data)
+- **Drive** — exercise the changed behavior the way a user or client does (HTTP calls, CLI runs, browser or device steps)
+- **Evidence** — what to capture and report for each check (command, exit code, output, log line or screenshot)
+- **Cleanup** — stop what Launch started and remove temporary state
+- **Feature map** — which repo paths map to which Drive checks, so a change list selects the right checks
+
+It keeps step 2's change-scope rule. The specialization is done only when the new skill has been executed end to end once on this repo.
+
 Typical stage-2 specialization examples:
 
 - web app: `npm run build`, `npm run preview`, HTTP smoke checks, browser inspection
@@ -137,6 +149,8 @@ implement → build-and-test → FAIL → fix code → build-and-test → PASS �
 ```
 
 Only proceed to final verification when `build-and-test` passes.
+
+A fix made after a pass voids that pass, a code-review fix included: run `build-and-test` again on the whole change.
 
 ## Skip Conditions
 

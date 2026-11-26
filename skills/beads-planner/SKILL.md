@@ -30,7 +30,7 @@ Turn planning output into a Beads structure that another agent or engineer can e
    - `Read:` exact files, docs, or code areas a fresh worker must inspect before editing
    - `Inputs:` persisted prerequisites only, such as upstream bead ids, committed code, generated artifacts, or bead notes that the worker must rely on
    - `Files:` exact file paths or directory scope the worker may touch
-   - `Verify:` exact commands or checks required before success can be reported
+   - `Verify:` exact commands or checks required before success can be reported; for a `bug` bead it starts with the reproduction (the command or steps that show the bug today, and what they show)
    - `Risk:` `low`, `medium`, or `high`
    - `Parallel:` whether the bead can run in parallel and what it must not overlap with
    - `Escalate:` what to do if blocked, underspecified, or forced out of scope

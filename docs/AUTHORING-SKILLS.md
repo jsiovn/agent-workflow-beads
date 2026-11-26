@@ -30,6 +30,10 @@ seam instead of creating a parallel one.
       general subagent told to first read `.claude/agents/<name>.md` (see
       `requesting-code-review`). Shell snippets assume a POSIX shell (Git Bash on
       Windows); a command the driver must run before that is checked uses Node.
+      Text that may contain backticks or `$` (bead notes, PR bodies, PR
+      replies) goes through a file written with the file-writing tool
+      (`bd note --file`, `gh pr create --body-file`, `gh api -F body=@<file>`),
+      never through shell quoting.
 - [ ] **Pick the type.** Technique (concrete steps), Pattern (way of thinking),
       or Reference (lookup). Don't blend — a Technique with no steps is a Pattern
       mislabeled.

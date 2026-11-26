@@ -58,7 +58,7 @@ This is the preferred path when the main working tree has in-flight changes that
    git worktree add <WORKTREE_PATH> -b <BRANCH_NAME> origin/<DEFAULT_BRANCH>
    ```
 
-   - If `<BRANCH_NAME>` already exists locally, stop and ask the user whether to reuse, rename, or delete it.
+   - If `<BRANCH_NAME>` already exists locally, stop: the bead was started before. Tell the user to resume it on that branch with `beads-claim` _Re-entering a Bead_ (never delete it to start over), or to pick another name if the branch is unrelated. Its worktree may still exist: `git worktree list`.
    - If `<WORKTREE_PATH>` already exists on disk, stop and ask the user.
 
 9. **Seed git-ignored local env files into the worktree — REQUIRED before `build-and-test`.** A fresh worktree checks out only _tracked_ files, so git-ignored local config the build needs — `.env.local`, `.env`, and the rest of the `.env*` family — is absent, and `build-and-test` would otherwise run against a worktree with no environment. Do this up front and unconditionally; do **NOT** skip or defer it on the assumption that `build-and-test` will synthesize a default environment — seed first, then let `build-and-test` verify, regardless of whether you believe the build needs the env. Copy those files (and only those) from the main checkout into the worktree, preserving relative paths. Run this from the main checkout (`<MAIN_ROOT>` = its root, `git rev-parse --show-toplevel`); it reads from the main tree but never writes to it:
@@ -89,15 +89,11 @@ This is the preferred path when the main working tree has in-flight changes that
 
 11. If separate work is discovered, create follow-up beads during execution or before close. Keep this worktree scoped to `<BEAD_ID>` only.
 
-12. If a blocker appears, update the current bead, summarize the blocker, and stop. Report the worktree path so the user can return to it. The worktree is never removed automatically — use the `cleanup-worktree` skill when ready to discard it.
+12. If a blocker appears, block the bead with the one safe form (`beads-close` _Rules_): `bd update <BEAD_ID> --status blocked --append-notes "Blocked: <one plain line>"`. Commit what is done, summarize the blocker, and stop. Report the worktree path and how to resume: `cd <WORKTREE_PATH>`, then `beads-claim` _Re-entering a Bead_. The worktree is never removed automatically — use the `cleanup-worktree` skill when ready to discard it.
 
-13. If build/test fails and the fix is still in scope, return to implementation and retry.
+13. If build/test fails and the fix is still in scope, return to implementation and retry. Review fixes take the same loop: fix → commit → `build-and-test` on the whole change → `verification-before-completion` (`requesting-code-review` step 3).
 
-14. After successful close, finalize the branch from within `<WORKTREE_PATH>` following the **`finishing-a-development-branch`** skill:
-    - verify clean tree and commits ahead of `<DEFAULT_BRANCH>`
-    - `git push -u origin HEAD`
-    - `gh pr create --base <DEFAULT_BRANCH> --title "<conventional-commit title>" --body "..."` — the PR body must include a `Bead: <BEAD_ID>` reference line (e.g. `Bead: lexify-a8m`). The title follows conventional commits format (`type(scope): description`) with no bead id prefix.
-    - report the PR URL
+14. After successful close, finalize the branch from within `<WORKTREE_PATH>` by following the **`finishing-a-development-branch`** skill with `<BASE_BRANCH>` = `<DEFAULT_BRANCH>` and the trailer line `Bead: <BEAD_ID>`. It verifies the branch, pushes, writes the title and the body (built from the closeout note, verification evidence included) and opens the PR. Report the PR URL.
 
 15. Stop with a concise summary: bead id, `<BRANCH_NAME>`, PR URL, and the worktree path (so the user can `cd` back in for follow-up work). The main working tree was never modified. The worktree is left in place — use the `cleanup-worktree` skill to remove it once review comments, screenshots, and CI fixes are done.
 

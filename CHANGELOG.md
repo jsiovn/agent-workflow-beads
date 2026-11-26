@@ -4,6 +4,105 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-11-26
+
+The executor chain now proves what it claims: verification and review cover the
+whole change, review findings carry evidence, review fixes are re-verified, the
+closeout note records the evidence and the PR body is built from it. PR review
+comments from untrusted authors are no longer acted on. Several ideas are
+adapted from pstack (see ATTRIBUTION.md).
+
+### Added
+
+- One change-scope rule, word for word in `beads-claim`, `writing-plans`,
+  `requesting-code-review`, `verification-before-completion`,
+  `address-pr-comments` and the stage-1 `build-and-test`: the change is
+  `<BASE>..HEAD` plus uncommitted paths, where `<BASE>` is the merge-base with
+  the PR base or a valid `Base-SHA:` note in an epic run.
+- `beads-claim` _Re-entering a Bead_: resume an `in_progress` or `blocked`
+  bead in its own checkout from its `Blocked:` / `Decision:` notes and
+  committed plan, commits over checkboxes, inherited work re-proven first.
+- `beads-close`: five-field closeout note (`Outcome` / `Verified` /
+  `Decisions` / `Persisted` / `Downstream`) attached with `bd note --file`;
+  `lesson` beads for corrections, unwritten conventions and hard-won commands.
+- `code-reviewer`: `### Reviewed` header echoing the range; every Critical or
+  Important finding tagged `Evidence: ran | traced | unverified` (Critical needs
+  ran or traced); may re-run the brief's listed checks, never edits or installs.
+- `requesting-code-review` fix loop: prove each finding, fix, commit, re-run
+  `build-and-test` and `verification-before-completion` on the whole change,
+  one re-review after a Critical fix.
+- `writing-plans`: plan shape by bead kind (a bug starts with a reproduction;
+  behavior-preserving changes pin behavior; performance records a baseline),
+  a required cleanup task before `## Verification`, ticked boxes committed
+  with the code.
+- Epic drivers: per-bead `Base-SHA:` note and base commit in the worker
+  prompt; workers take the reversible option and record a `Decision:` note
+  instead of asking; commits a blocked bead leaves get a `Left commits:` note.
+- `address-pr-comments` trust policy: OWNER / MEMBER / COLLABORATOR and bot
+  comments are addressed, everyone else's are withheld at fetch time and listed
+  for the user; a footprint check stops on unexpected paths and on CI, hook,
+  manifest, lockfile or agent-instruction changes. `pr-comment-fixer` gains an
+  `escalate` action.
+- Stage-2 `build-and-test` bead and template: Launch / Doctor / Drive /
+  Evidence / Cleanup / Feature map sections and a done criterion.
+- `update` creates a one-time "Upgrade build-and-test to the 1.5.0 stage-2
+  shape" bead when the downstream's preserved `build-and-test` lacks the
+  change-scope rule.
+- `agent-workflow-beads join <repo>`: joins the shared beads database from a
+  fresh clone on another machine. Requires `sync.remote` in
+  `.beads/config.yaml`, resets the empty Dolt workspace an earlier `bd` command
+  (or Claude Code's `bd prime` hook) left, then runs
+  `bd init --skip-agents --skip-hooks --non-interactive`. No commit, no push.
+
+### Changed
+
+- `finishing-a-development-branch` owns the PR contract for all six executors:
+  base from the caller, conventional title, body built from the closeout note
+  (`## Verification` required) passed with `--body-file`, literal `Epic:` /
+  `Bead:` lines. The epic PR body is built from bead notes by one command.
+  PR bodies no longer come from `gh pr create --fill`.
+- Plan review uses the bead contract as the spec and stops after two rounds
+  per chunk (`## Open Review Points`).
+- `address-pr-comments` requires a clean tree, stages by path and posts
+  replies from files (`gh api -F body=@<file>`).
+- Cross-machine sync now goes through the project's own git repo:
+  `docs/CROSS-MACHINE-SYNC.md` and the guidance `bootstrap` prints replace the
+  separate `<repo>-beads` remote with `bd dolt push` to `origin` (hidden ref
+  `refs/dolt/data`), and other machines join with `git clone` +
+  `agent-workflow-beads join`. The guide adds a migration section for
+  downstreams on the old remote and warns that a public repo makes the issues
+  public. `PRIME.md` points a fresh clone with no database at `join`.
+
+### Fixed
+
+- Code review diffed only the last commit (`HEAD~1`), or only the plan commit.
+- Review fixes shipped without re-running verification.
+- `build-and-test` computed its change list from `git diff HEAD`, empty once
+  work is committed, and could skip validation.
+- Blocking a bead with `bd update --notes` replaced its notes, including the
+  plan `beads-planner` inlined there; every block site now appends.
+- `executor-epic-sequential`'s "commit landed" check compared against the
+  default branch (always true after bead 1), and it never cleaned the checkout
+  after a blocked bead.
+- `executor-epic-sequential-worktree` claimed the main checkout would not see
+  the run's bead updates; bd state is shared.
+- `executor-task` / `executor-epic-task` descriptions said "stash"; the body
+  makes a WIP commit.
+
+### Migration
+
+- A downstream's preserved `build-and-test` keeps its old step 2. When it
+  lacks the change-scope rule, `update` creates one bead, "Upgrade
+  build-and-test to the 1.5.0 stage-2 shape" (labels `stage-2,upgrade`), that
+  adds the rule and the stage-2 sections to the existing skill; it depends on
+  the stage-2 bead while that is still open. Until it is done the callers pass
+  the file list themselves.
+- An open stage-2 `build-and-test` bead keeps its old description; the
+  upgrade bead above covers the difference.
+- Beads blocked by an older version may have lost their notes to `--notes`;
+  check `bd show` before re-entering one.
+- `address-pr-comments` now needs a clean working tree.
+
 ## [1.4.1] - 2026-11-14
 
 ### Fixed
