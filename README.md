@@ -69,6 +69,17 @@ agent-workflow-beads update /path/to/your-repo --with-omp --with-opencode
 
 `update` never overwrites your specialized `build-and-test`. If that skill predates the 1.5.0 change-scope rule, `update` creates one bead, "Upgrade build-and-test to the 1.5.0 stage-2 shape", to bring it up to date.
 
+### 4. Another machine
+
+Beads issues sync through the repo's own git remote once the first machine has run `bd dolt push` and pushed the config commit (see [docs/CROSS-MACHINE-SYNC.md](docs/CROSS-MACHINE-SYNC.md)). On every other machine:
+
+```bash
+git clone <repo-url> /path/to/your-repo
+agent-workflow-beads join /path/to/your-repo
+```
+
+Run `join` before opening Claude Code in the clone. If you opened it first anyway, `join` still works: it resets the empty Dolt workspace that Claude Code's `bd prime` hook started.
+
 For a guided walkthrough of a brand-new project, see [docs/SETUP-NEW-REPO.md](docs/SETUP-NEW-REPO.md).
 
 ---

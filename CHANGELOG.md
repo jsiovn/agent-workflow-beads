@@ -48,6 +48,11 @@ adapted from pstack (see ATTRIBUTION.md).
 - `update` creates a one-time "Upgrade build-and-test to the 1.5.0 stage-2
   shape" bead when the downstream's preserved `build-and-test` lacks the
   change-scope rule.
+- `agent-workflow-beads join <repo>`: joins the shared beads database from a
+  fresh clone on another machine. Requires `sync.remote` in
+  `.beads/config.yaml`, resets the empty Dolt workspace an earlier `bd` command
+  (or Claude Code's `bd prime` hook) left, then runs
+  `bd init --skip-agents --skip-hooks --non-interactive`. No commit, no push.
 
 ### Changed
 
@@ -60,6 +65,13 @@ adapted from pstack (see ATTRIBUTION.md).
   per chunk (`## Open Review Points`).
 - `address-pr-comments` requires a clean tree, stages by path and posts
   replies from files (`gh api -F body=@<file>`).
+- Cross-machine sync now goes through the project's own git repo:
+  `docs/CROSS-MACHINE-SYNC.md` and the guidance `bootstrap` prints replace the
+  separate `<repo>-beads` remote with `bd dolt push` to `origin` (hidden ref
+  `refs/dolt/data`), and other machines join with `git clone` +
+  `agent-workflow-beads join`. The guide adds a migration section for
+  downstreams on the old remote and warns that a public repo makes the issues
+  public. `PRIME.md` points a fresh clone with no database at `join`.
 
 ### Fixed
 

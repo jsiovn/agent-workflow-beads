@@ -42,4 +42,5 @@ git checkout -b feat/<bead-id>
 ## Recovery
 
 - If the current checkout cannot see the Beads database, inspect `bd where`
+- Fresh clone on another machine with no database yet (`database "<name>" not found`, `legacy Dolt server workspace detected`): run `agent-workflow-beads join .` from the repo root (it only resets a workspace that holds no database)
 - If local server state looks wrong, use `bd bootstrap --yes`
