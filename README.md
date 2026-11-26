@@ -67,6 +67,8 @@ agent-workflow-beads update /path/to/your-repo
 agent-workflow-beads update /path/to/your-repo --with-omp --with-opencode
 ```
 
+`update` never overwrites your specialized `build-and-test`. If that skill predates the 1.5.0 change-scope rule, `update` creates one bead, "Upgrade build-and-test to the 1.5.0 stage-2 shape", to bring it up to date.
+
 For a guided walkthrough of a brand-new project, see [docs/SETUP-NEW-REPO.md](docs/SETUP-NEW-REPO.md).
 
 ---

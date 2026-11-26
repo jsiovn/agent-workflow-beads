@@ -45,6 +45,9 @@ adapted from pstack (see ATTRIBUTION.md).
   `escalate` action.
 - Stage-2 `build-and-test` bead and template: Launch / Doctor / Drive /
   Evidence / Cleanup / Feature map sections and a done criterion.
+- `update` creates a one-time "Upgrade build-and-test to the 1.5.0 stage-2
+  shape" bead when the downstream's preserved `build-and-test` lacks the
+  change-scope rule.
 
 ### Changed
 
@@ -76,11 +79,14 @@ adapted from pstack (see ATTRIBUTION.md).
 
 ### Migration
 
-- A downstream's preserved `build-and-test` keeps its old step 2. Hand-patch
-  it with the change-scope rule (copy it from `verification-before-completion`
-  _Change Scope Gate_); until then the callers pass the file list themselves.
-- An open stage-2 `build-and-test` bead keeps its old description; the new one
-  applies only to beads created from now on.
+- A downstream's preserved `build-and-test` keeps its old step 2. When it
+  lacks the change-scope rule, `update` creates one bead, "Upgrade
+  build-and-test to the 1.5.0 stage-2 shape" (labels `stage-2,upgrade`), that
+  adds the rule and the stage-2 sections to the existing skill; it depends on
+  the stage-2 bead while that is still open. Until it is done the callers pass
+  the file list themselves.
+- An open stage-2 `build-and-test` bead keeps its old description; the
+  upgrade bead above covers the difference.
 - Beads blocked by an older version may have lost their notes to `--notes`;
   check `bd show` before re-entering one.
 - `address-pr-comments` now needs a clean working tree.
