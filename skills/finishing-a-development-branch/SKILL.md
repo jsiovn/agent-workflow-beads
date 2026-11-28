@@ -98,7 +98,7 @@ Branch: <branch-name> → <BASE_BRANCH>
 
 ## Epic PR body
 
-The epic drivers (`executor-epic-sequential`, `executor-epic-sequential-worktree`) build `<BODY_FILE>` themselves, from the bead notes, with one command, so the driver's context stays thin. `## Delivered` replaces _What changed_, _Verification_ and _Decisions_: it carries each delivered bead's `Outcome:`, `Verified:` and `Decisions:` lines. `## Blocked or skipped` lists every other child with its last `Blocked:` line and any `Left commits:` range.
+The epic drivers (`executor-epic-sequential`, `executor-epic-sequential-worktree`) build `<BODY_FILE>` themselves, from the bead notes, with one command, so the driver's context stays thin. `## Delivered` replaces _What changed_, _Verification_ and _Decisions_: it carries each delivered bead's `Outcome:`, `Verified:` and `Decisions:` lines. `## Blocked or skipped` lists every other child with its last `Blocked:` line and any `Left commits:` range. The bead id and each label are bold, and every field is its own sub-bullet (wrapped lines indented under it), so a long body stays scannable.
 
 ```bash
 { cat <<'EOF'
@@ -108,11 +108,11 @@ The epic drivers (`executor-epic-sequential`, `executor-epic-sequential-worktree
 
 EOF
 bd list --parent <EPIC_BEAD_ID> --all --limit 0 --json | node -e '
-let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const D=[],B=[];
-for(const b of JSON.parse(s)){const L=(b.notes||"").split("\n"),last=p=>L.filter(l=>l.startsWith(p)).pop(),lc=last("Left commits:");
+let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const D=[],B=[],F=l=>{const m=l.match(/^(Outcome|Verified|Decisions):\s*(.*)$/);return m?"  - **"+m[1]+":** "+m[2]:"    "+l.trim();};
+for(const b of JSON.parse(s)){const L=(b.notes||"").split("\n").map(l=>l.trimEnd()),last=p=>L.filter(l=>l.startsWith(p)).pop(),lc=last("Left commits:");
 if(b.status==="closed"){const i=L.map(l=>l.startsWith("Outcome:")).lastIndexOf(true),j=L.findIndex((l,k)=>k>i&&l.startsWith("Persisted:"));
-D.push("- "+b.id+" "+b.title,...(i<0?["  (no closeout note)"]:L.slice(i,j<0?L.length:j).map(l=>"  "+l)));}
-else B.push("- "+b.id+" "+b.title+": "+(b.status==="blocked"?last("Blocked:")||"Blocked: no reason recorded":"not run ("+b.status+")")+(lc?" ("+lc+")":""));}
+D.push("- **"+b.id+"** "+b.title,...(i<0?["  - (no closeout note)"]:L.slice(i,j<0?L.length:j).filter(l=>l.trim()).map(F)));}
+else B.push("- **"+b.id+"** "+b.title+": "+(b.status==="blocked"?(last("Blocked:")||"Blocked: no reason recorded").replace(/^Blocked:/,"**Blocked:**"):"not run ("+b.status+")")+(lc?" ("+lc.replace(/^Left commits:/,"**Left commits:**")+")":""));}
 console.log(["## Delivered",...(D.length?D:["none"]),"","## Blocked or skipped",...(B.length?B:["none"])].join("\n"));});'
 printf '\nEpic: %s\n' "<EPIC_BEAD_ID>"
 } > "<RUN_TMP>/pr-body.md"

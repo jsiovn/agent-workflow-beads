@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- `finishing-a-development-branch` _Epic PR body_: each delivered bead's id is
+  bold, and its `Outcome:`, `Verified:` and `Decisions:` lines are sub-bullets
+  with bold labels (wrapped lines indented under them); `Blocked:` and
+  `Left commits:` are bold too. A long epic body was a wall of plain text.
+
 ## [1.5.0] - 2026-11-26
 
 The executor chain now proves what it claims: verification and review cover the
